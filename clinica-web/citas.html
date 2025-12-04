@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Citas - Sistema Clínica</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-content">
+      <a href="dashboard.html" class="navbar-brand">Sistema Clínica</a>
+      <div class="navbar-menu">
+        <a href="dashboard.html" class="navbar-link">Dashboard</a>
+        <a href="pacientes.html" class="navbar-link">Pacientes</a>
+        <a href="medicos.html" class="navbar-link">Médicos</a>
+        <a href="citas.html" class="navbar-link active">Citas</a>
+        <button class="btn btn-sm btn-outline" onclick="Utils.logout()">
+          Cerrar Sesión
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="page-wrapper">
+    <div class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
+      
+      <!-- Header -->
+      <div class="flex flex-between align-center mb-3">
+        <div>
+          <h1>Gestión de Citas</h1>
+          <p class="text-secondary">Administra las citas médicas del centro</p>
+        </div>
+        <button id="btnNuevo" class="btn btn-primary">
+          ➕ Nueva Cita
+        </button>
+      </div>
+
+      <div id="message" class="message"></div>
+
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card" style="--stat-color: #3B82F6; --stat-color-light: #60A5FA;">
+          <div class="stat-icon">📅</div>
+          <div class="stat-value" id="totalCitas">0</div>
+          <div class="stat-label">Total de Citas</div>
+        </div>
+      </div>
+
+      <!-- Formulario (oculto por defecto) -->
+      <div id="formSection" class="card mt-2" style="display: none;">
+        <div class="card-header">
+          <h3 class="card-title">Datos de la Cita</h3>
+          <p class="card-subtitle">Complete la información de la cita médica</p>
+        </div>
+        
+        <form id="citaForm">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            
+            <div class="form-group">
+              <label for="pacienteId" class="form-label">Paciente *</label>
+              <select id="pacienteId" class="form-select" required>
+                <option value="">Seleccione un paciente</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="medicoId" class="form-label">Médico *</label>
+              <select id="medicoId" class="form-select" required>
+                <option value="">Seleccione un médico</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="fecha" class="form-label">Fecha *</label>
+              <input 
+                type="date" 
+                id="fecha" 
+                class="form-input"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="hora" class="form-label">Hora *</label>
+              <input 
+                type="time" 
+                id="hora" 
+                class="form-input"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="motivo" class="form-label">Motivo de la Consulta *</label>
+              <input 
+                type="text" 
+                id="motivo" 
+                class="form-input" 
+                placeholder="Ej: Control general, dolor de cabeza"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="estado" class="form-label">Estado *</label>
+              <select id="estado" class="form-select" required>
+                <option value="programada">Programada</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label for="observaciones" class="form-label">Observaciones</label>
+              <textarea 
+                id="observaciones" 
+                class="form-textarea" 
+                placeholder="Notas adicionales sobre la cita..."
+                rows="3"
+              ></textarea>
+            </div>
+
+          </div>
+
+          <div class="flex gap-2 mt-2">
+            <button type="button" id="btnGuardar" class="btn btn-primary">
+              Guardar Cita
+            </button>
+            <button type="button" id="btnCancelar" class="btn btn-outline">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tabla de Citas -->
+      <div class="card mt-2">
+        <div class="card-header">
+          <h3 class="card-title">Lista de Citas</h3>
+          <div class="flex gap-2 mt-1">
+            <input 
+              type="text" 
+              id="searchInput" 
+              class="form-input" 
+              placeholder="🔍 Buscar por paciente o médico..."
+              style="max-width: 300px;"
+            >
+            <select id="filterEstado" class="form-select" style="max-width: 200px;">
+              <option value="">Todos los estados</option>
+              <option value="programada">Programada</option>
+              <option value="confirmada">Confirmada</option>
+              <option value="en-atencion">En Atención</option>
+              <option value="completada">Completada</option>
+              <option value="cancelada">Cancelada</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Paciente</th>
+                <th>Médico</th>
+                <th>Fecha y Hora</th>
+                <th>Motivo</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tablaCitas">
+              <!-- Datos cargados dinámicamente -->
+            </tbody>
+          </table>
+
+          <div id="emptyState" class="table-empty" style="display: none;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">📅</div>
+            <h3>No hay citas registradas</h3>
+            <p class="text-secondary">Comienza programando la primera cita</p>
+            <button class="btn btn-primary mt-1" onclick="document.getElementById('btnNuevo').click()">
+              ➕ Programar Primera Cita
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/citas.js"></script>
+</body>
+</html>

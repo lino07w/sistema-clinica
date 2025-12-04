@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Médicos - Sistema Clínica</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-content">
+      <a href="dashboard.html" class="navbar-brand">Sistema Clínica</a>
+      <div class="navbar-menu">
+        <a href="dashboard.html" class="navbar-link">Dashboard</a>
+        <a href="pacientes.html" class="navbar-link">Pacientes</a>
+        <a href="medicos.html" class="navbar-link active">Médicos</a>
+        <a href="citas.html" class="navbar-link">Citas</a>
+        <button class="btn btn-sm btn-outline" onclick="Utils.logout()">
+          Cerrar Sesión
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="page-wrapper">
+    <div class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
+      
+      <!-- Header -->
+      <div class="flex flex-between align-center mb-3">
+        <div>
+          <h1>Gestión de Médicos</h1>
+          <p class="text-secondary">Administra el personal médico del centro</p>
+        </div>
+        <button id="btnNuevo" class="btn btn-secondary">
+          ➕ Nuevo Médico
+        </button>
+      </div>
+
+      <div id="message" class="message"></div>
+
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card" style="--stat-color: #00C9A7; --stat-color-light: #00E4B5;">
+          <div class="stat-icon">⚕️</div>
+          <div class="stat-value" id="totalMedicos">0</div>
+          <div class="stat-label">Médicos Registrados</div>
+        </div>
+      </div>
+
+      <!-- Formulario (oculto por defecto) -->
+      <div id="formSection" class="card mt-2" style="display: none;">
+        <div class="card-header">
+          <h3 class="card-title">Datos del Médico</h3>
+          <p class="card-subtitle">Complete la información del profesional médico</p>
+        </div>
+        
+        <form id="medicoForm">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            
+            <div class="form-group">
+              <label for="nombre" class="form-label">Nombre Completo *</label>
+              <input 
+                type="text" 
+                id="nombre" 
+                class="form-input" 
+                placeholder="Ej: Dr. Carlos Rodríguez"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="dni" class="form-label">DNI *</label>
+              <input 
+                type="text" 
+                id="dni" 
+                class="form-input" 
+                placeholder="Ej: 87654321"
+                maxlength="8"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="especialidad" class="form-label">Especialidad *</label>
+              <select id="especialidad" class="form-select" required>
+                <option value="">Seleccione una especialidad</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="matricula" class="form-label">Matrícula Profesional *</label>
+              <input 
+                type="text" 
+                id="matricula" 
+                class="form-input" 
+                placeholder="Ej: MP-12345"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="telefono" class="form-label">Teléfono</label>
+              <input 
+                type="tel" 
+                id="telefono" 
+                class="form-input" 
+                placeholder="Ej: 987654321"
+                maxlength="9"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="email" class="form-label">Email</label>
+              <input 
+                type="email" 
+                id="email" 
+                class="form-input" 
+                placeholder="Ej: dr.carlos@clinica.com"
+              >
+            </div>
+
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label for="horario" class="form-label">Horario de Atención</label>
+              <input 
+                type="text" 
+                id="horario" 
+                class="form-input" 
+                placeholder="Ej: Lunes a Viernes 9:00 - 17:00"
+              >
+            </div>
+
+          </div>
+
+          <div class="flex gap-2 mt-2">
+            <button type="button" id="btnGuardar" class="btn btn-secondary">
+              Guardar Médico
+            </button>
+            <button type="button" id="btnCancelar" class="btn btn-outline">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tabla de Médicos -->
+      <div class="card mt-2">
+        <div class="card-header">
+          <h3 class="card-title">Lista de Médicos</h3>
+          <div class="mt-1">
+            <input 
+              type="text" 
+              id="searchInput" 
+              class="form-input" 
+              placeholder="🔍 Buscar por nombre, DNI o especialidad..."
+              style="max-width: 400px;"
+            >
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>DNI</th>
+                <th>Especialidad</th>
+                <th>Matrícula</th>
+                <th>Teléfono</th>
+                <th>Horario</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tablaMedicos">
+              <!-- Datos cargados dinámicamente -->
+            </tbody>
+          </table>
+
+          <div id="emptyState" class="table-empty" style="display: none;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">⚕️</div>
+            <h3>No hay médicos registrados</h3>
+            <p class="text-secondary">Comienza agregando el primer médico</p>
+            <button class="btn btn-secondary mt-1" onclick="document.getElementById('btnNuevo').click()">
+              ➕ Agregar Primer Médico
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/medicos.js"></script>
+</body>
+</html>

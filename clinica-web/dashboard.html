@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Sistema Clínica</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-content">
+      <a href="dashboard.html" class="navbar-brand">Sistema Clínica</a>
+      <div class="navbar-menu">
+        <a href="dashboard.html" class="navbar-link active">Dashboard</a>
+        <a href="pacientes.html" class="navbar-link">Pacientes</a>
+        <a href="medicos.html" class="navbar-link">Médicos</a>
+        <a href="citas.html" class="navbar-link">Citas</a>
+        <button class="btn btn-sm btn-outline" onclick="Utils.logout()">
+          Cerrar Sesión
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="page-wrapper">
+    <div class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
+      
+      <!-- Header -->
+      <div class="flex flex-between align-center mb-3">
+        <div>
+          <h1 id="saludo">¡Bienvenido!</h1>
+          <p class="text-secondary">Resumen general del sistema de gestión clínica</p>
+        </div>
+        <button id="btnRefresh" class="btn btn-outline">
+          🔄 Actualizar
+        </button>
+      </div>
+
+      <div id="message" class="message"></div>
+
+      <!-- Stats Grid -->
+      <div class="stats-grid">
+        <div class="stat-card" style="--stat-color: #088395; --stat-color-light: #0A4D68;">
+          <div class="stat-icon">👥</div>
+          <div class="stat-value" id="totalPacientes">0</div>
+          <div class="stat-label">Total de Pacientes</div>
+        </div>
+
+        <div class="stat-card" style="--stat-color: #00C9A7; --stat-color-light: #00E4B5;">
+          <div class="stat-icon">⚕️</div>
+          <div class="stat-value" id="totalMedicos">0</div>
+          <div class="stat-label">Médicos Registrados</div>
+        </div>
+
+        <div class="stat-card" style="--stat-color: #3B82F6; --stat-color-light: #60A5FA;">
+          <div class="stat-icon">📅</div>
+          <div class="stat-value" id="totalCitas">0</div>
+          <div class="stat-label">Total de Citas</div>
+        </div>
+
+        <div class="stat-card" style="--stat-color: #F59E0B; --stat-color-light: #FBBF24;">
+          <div class="stat-icon">🗓️</div>
+          <div class="stat-value" id="citasHoy">0</div>
+          <div class="stat-label">Citas de Hoy</div>
+        </div>
+
+        <div class="stat-card" style="--stat-color: #10B981; --stat-color-light: #34D399;">
+          <div class="stat-icon">⏰</div>
+          <div class="stat-value" id="proximasCitas">0</div>
+          <div class="stat-label">Próximas Citas</div>
+        </div>
+
+        <div class="stat-card" style="--stat-color: #8B5CF6; --stat-color-light: #A78BFA;">
+          <div class="stat-icon">✅</div>
+          <div class="stat-value" id="citasCompletadas">0</div>
+          <div class="stat-label">Citas Completadas</div>
+        </div>
+      </div>
+
+      <!-- Content Grid -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2rem;">
+        
+        <!-- Citas Recientes -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Citas Recientes</h3>
+            <p class="card-subtitle">Últimas citas registradas en el sistema</p>
+          </div>
+          <div id="citasRecientes"></div>
+        </div>
+
+        <!-- Próximas Citas -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Próximas Citas</h3>
+            <p class="card-subtitle">Citas programadas y confirmadas</p>
+          </div>
+          <div id="proximasCitasLista"></div>
+        </div>
+
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="card mt-3">
+        <div class="card-header">
+          <h3 class="card-title">Acciones Rápidas</h3>
+          <p class="card-subtitle">Enlaces directos a las funciones principales</p>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+          <a href="pacientes.html" class="btn btn-primary">
+            👥 Gestionar Pacientes
+          </a>
+          <a href="medicos.html" class="btn btn-secondary">
+            ⚕️ Gestionar Médicos
+          </a>
+          <a href="citas.html" class="btn btn-outline">
+            📅 Gestionar Citas
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  
+  <script src="js/api.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pacientes - Sistema Clínica</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-content">
+      <a href="dashboard.html" class="navbar-brand">Sistema Clínica</a>
+      <div class="navbar-menu">
+        <a href="dashboard.html" class="navbar-link">Dashboard</a>
+        <a href="pacientes.html" class="navbar-link active">Pacientes</a>
+        <a href="medicos.html" class="navbar-link">Médicos</a>
+        <a href="citas.html" class="navbar-link">Citas</a>
+        <button class="btn btn-sm btn-outline" onclick="Utils.logout()">
+          Cerrar Sesión
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="page-wrapper">
+    <div class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
+      
+      <!-- Header -->
+      <div class="flex flex-between align-center mb-3">
+        <div>
+          <h1>Gestión de Pacientes</h1>
+          <p class="text-secondary">Administra el registro de pacientes del centro médico</p>
+        </div>
+        <button id="btnNuevo" class="btn btn-primary">
+          ➕ Nuevo Paciente
+        </button>
+      </div>
+
+      <div id="message" class="message"></div>
+
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card" style="--stat-color: #088395; --stat-color-light: #0A4D68;">
+          <div class="stat-icon">👥</div>
+          <div class="stat-value" id="totalPacientes">0</div>
+          <div class="stat-label">Pacientes Registrados</div>
+        </div>
+      </div>
+
+      <!-- Formulario (oculto por defecto) -->
+      <div id="formSection" class="card mt-2" style="display: none;">
+        <div class="card-header">
+          <h3 class="card-title">Datos del Paciente</h3>
+          <p class="card-subtitle">Complete la información del paciente</p>
+        </div>
+        
+        <form id="pacienteForm">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            
+            <div class="form-group">
+              <label for="nombre" class="form-label">Nombre Completo *</label>
+              <input 
+                type="text" 
+                id="nombre" 
+                class="form-input" 
+                placeholder="Ej: Juan Pérez García"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="dni" class="form-label">DNI *</label>
+              <input 
+                type="text" 
+                id="dni" 
+                class="form-input" 
+                placeholder="Ej: 12345678"
+                maxlength="8"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="fechaNacimiento" class="form-label">Fecha de Nacimiento *</label>
+              <input 
+                type="date" 
+                id="fechaNacimiento" 
+                class="form-input"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="telefono" class="form-label">Teléfono</label>
+              <input 
+                type="tel" 
+                id="telefono" 
+                class="form-input" 
+                placeholder="Ej: 987654321"
+                maxlength="9"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="email" class="form-label">Email</label>
+              <input 
+                type="email" 
+                id="email" 
+                class="form-input" 
+                placeholder="Ej: juan@ejemplo.com"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="direccion" class="form-label">Dirección</label>
+              <input 
+                type="text" 
+                id="direccion" 
+                class="form-input" 
+                placeholder="Ej: Av. Principal 123"
+              >
+            </div>
+
+          </div>
+
+          <div class="flex gap-2 mt-2">
+            <button type="button" id="btnGuardar" class="btn btn-primary">
+              Guardar Paciente
+            </button>
+            <button type="button" id="btnCancelar" class="btn btn-outline">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tabla de Pacientes -->
+      <div class="card mt-2">
+        <div class="card-header">
+          <h3 class="card-title">Lista de Pacientes</h3>
+          <div class="flex gap-2 mt-1">
+            <input 
+              type="text" 
+              id="searchInput" 
+              class="form-input" 
+              placeholder="🔍 Buscar por nombre o DNI..."
+              style="max-width: 300px;"
+            >
+            <button class="btn btn-outline btn-sm" onclick="pacientesManager.exportarCSV()">
+              📊 Exportar CSV
+            </button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>DNI</th>
+                <th>Edad</th>
+                <th>Teléfono</th>
+                <th>Email</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tablaPacientes">
+              <!-- Datos cargados dinámicamente -->
+            </tbody>
+          </table>
+
+          <div id="emptyState" class="table-empty" style="display: none;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+            <h3>No hay pacientes registrados</h3>
+            <p class="text-secondary">Comienza agregando el primer paciente</p>
+            <button class="btn btn-primary mt-1" onclick="document.getElementById('btnNuevo').click()">
+              ➕ Agregar Primer Paciente
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/pacientes.js"></script>
+</body>
+</html>
