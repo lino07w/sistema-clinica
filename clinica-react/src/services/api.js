@@ -2,16 +2,15 @@ import axios from 'axios';
 
 const API_URL = 'http://localhost:3000/api';
 
-// Crear instancia de axios
-const api = axios.create({
+const axiosInstance = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json'
   }
 });
 
-// Interceptor para agregar el token en cada petición
-api.interceptors.request.use(
+// Interceptor para agregar el token a cada petición
+axiosInstance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -25,7 +24,7 @@ api.interceptors.request.use(
 );
 
 // Interceptor para manejar errores de autenticación
-api.interceptors.response.use(
+axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
@@ -37,101 +36,37 @@ api.interceptors.response.use(
   }
 );
 
-// ===== AUTH =====
+// API de autenticación
 export const authAPI = {
-  login: async (username, password) => {
-    const response = await api.post('/auth/login', { username, password });
-    return response.data;
-  },
-  
-  getMe: async () => {
-    const response = await api.get('/auth/me');
-    return response.data;
-  }
+  login: (credentials) => axiosInstance.post('/auth/login', credentials),
+  getMe: () => axiosInstance.get('/auth/me')
 };
 
-// ===== PACIENTES =====
+// API de pacientes
 export const pacientesAPI = {
-  getAll: async () => {
-    const response = await api.get('/pacientes');
-    return response.data;
-  },
-  
-  getById: async (id) => {
-    const response = await api.get(`/pacientes/${id}`);
-    return response.data;
-  },
-  
-  create: async (data) => {
-    const response = await api.post('/pacientes', data);
-    return response.data;
-  },
-  
-  update: async (id, data) => {
-    const response = await api.put(`/pacientes/${id}`, data);
-    return response.data;
-  },
-  
-  delete: async (id) => {
-    const response = await api.delete(`/pacientes/${id}`);
-    return response.data;
-  }
+  getAll: () => axiosInstance.get('/pacientes'),
+  getById: (id) => axiosInstance.get(`/pacientes/${id}`),
+  create: (data) => axiosInstance.post('/pacientes', data),
+  update: (id, data) => axiosInstance.put(`/pacientes/${id}`, data),
+  delete: (id) => axiosInstance.delete(`/pacientes/${id}`)
 };
 
-// ===== MÉDICOS =====
+// API de médicos
 export const medicosAPI = {
-  getAll: async () => {
-    const response = await api.get('/medicos');
-    return response.data;
-  },
-  
-  getById: async (id) => {
-    const response = await api.get(`/medicos/${id}`);
-    return response.data;
-  },
-  
-  create: async (data) => {
-    const response = await api.post('/medicos', data);
-    return response.data;
-  },
-  
-  update: async (id, data) => {
-    const response = await api.put(`/medicos/${id}`, data);
-    return response.data;
-  },
-  
-  delete: async (id) => {
-    const response = await api.delete(`/medicos/${id}`);
-    return response.data;
-  }
+  getAll: () => axiosInstance.get('/medicos'),
+  getById: (id) => axiosInstance.get(`/medicos/${id}`),
+  create: (data) => axiosInstance.post('/medicos', data),
+  update: (id, data) => axiosInstance.put(`/medicos/${id}`, data),
+  delete: (id) => axiosInstance.delete(`/medicos/${id}`)
 };
 
-// ===== CITAS =====
+// API de citas
 export const citasAPI = {
-  getAll: async () => {
-    const response = await api.get('/citas');
-    return response.data;
-  },
-  
-  getById: async (id) => {
-    const response = await api.get(`/citas/${id}`);
-    return response.data;
-  },
-  
-  create: async (data) => {
-    const response = await api.post('/citas', data);
-    return response.data;
-  },
-  
-  update: async (id, data) => {
-    const response = await api.put(`/citas/${id}`, data);
-    return response.data;
-  },
-  
-  delete: async (id) => {
-    const response = await api.delete(`/citas/${id}`);
-    return response.data;
-  }
+  getAll: () => axiosInstance.get('/citas'),
+  getById: (id) => axiosInstance.get(`/citas/${id}`),
+  create: (data) => axiosInstance.post('/citas', data),
+  update: (id, data) => axiosInstance.put(`/citas/${id}`, data),
+  delete: (id) => axiosInstance.delete(`/citas/${id}`)
 };
 
-export default api;
+export default axiosInstance;

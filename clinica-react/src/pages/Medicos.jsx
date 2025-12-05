@@ -29,18 +29,19 @@ const Medicos = () => {
     cargarMedicos();
   }, []);
 
-  const cargarMedicos = async () => {
-    try {
-      const response = await medicosAPI.getAll();
-      setMedicos(response.data);
-    } catch (error) {
-      console.error('Error cargando médicos:', error);
-      alert('Error al cargar médicos');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+const cargarMedicos = async () => {
+  try {
+    const response = await medicosAPI.getAll();
+    // Extraer el array correcto
+    const data = response.data?.data || response.data || [];
+    setMedicos(data);
+  } catch (error) {
+    console.error('Error cargando médicos:', error);
+    alert('Error al cargar médicos');
+  } finally {
+    setLoading(false);
+  }
+};
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {

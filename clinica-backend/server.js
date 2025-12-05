@@ -36,13 +36,18 @@ if (config.env === 'development') {
   app.use(morgan('dev'));
 }
 
-// Límite de peticiones
-const limiter = rateLimit({
-  windowMs: config.rateLimit.windowMs,
-  max: config.rateLimit.max,
-  message: 'Demasiadas peticiones desde esta IP. Intente más tarde.'
-});
-app.use('/api/', limiter);
+// Rate limiting - DESACTIVADO TEMPORALMENTE PARA DESARROLLO
+// const limiter = rateLimit({
+//   windowMs: config.rateLimit.windowMs,
+//   max: config.rateLimit.maxRequests,
+//   message: 'Demasiadas peticiones desde esta IP, por favor intenta más tarde'
+// });
+
+// app.use('/api/', limiter);
+
+// app.use('/api/', limiter);
+
+
 
 /* ===================== RUTAS ===================== */
 

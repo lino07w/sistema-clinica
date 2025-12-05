@@ -28,14 +28,19 @@ const Dashboard = () => {
           citasAPI.getAll()
         ]);
 
-        const citasPendientes = citasRes.data.filter(
+        // Extraer los arrays correctamente
+        const pacientesData = pacientesRes.data?.data || pacientesRes.data || [];
+        const medicosData = medicosRes.data?.data || medicosRes.data || [];
+        const citasData = citasRes.data?.data || citasRes.data || [];
+
+        const citasPendientes = citasData.filter(
           c => c.estado === 'programada'
         ).length;
 
         setStats({
-          pacientes: pacientesRes.data.length,
-          medicos: medicosRes.data.length,
-          citas: citasRes.data.length,
+          pacientes: pacientesData.length,
+          medicos: medicosData.length,
+          citas: citasData.length,
           citasPendientes
         });
       } else if (isMedico()) {
@@ -45,32 +50,37 @@ const Dashboard = () => {
           citasAPI.getAll() // Ya viene filtrado por el backend
         ]);
 
-        const citasPendientes = citasRes.data.filter(
+        const medicosData = medicosRes.data?.data || medicosRes.data || [];
+        const citasData = citasRes.data?.data || citasRes.data || [];
+
+        const citasPendientes = citasData.filter(
           c => c.estado === 'programada'
         ).length;
 
         setStats({
           pacientes: 0, // Los médicos no ven esta estadística
-          medicos: medicosRes.data.length,
-          citas: citasRes.data.length,
+          medicos: medicosData.length,
+          citas: citasData.length,
           citasPendientes
         });
       } else if (isPaciente()) {
         // Paciente solo ve sus propias citas
         const citasRes = await citasAPI.getAll(); // Ya viene filtrado por el backend
 
-        const citasPendientes = citasRes.data.filter(
+        const citasData = citasRes.data?.data || citasRes.data || [];
+
+        const citasPendientes = citasData.filter(
           c => c.estado === 'programada'
         ).length;
 
-        const citasCompletadas = citasRes.data.filter(
+        const citasCompletadas = citasData.filter(
           c => c.estado === 'completada'
         ).length;
 
         setStats({
           pacientes: 0,
           medicos: 0,
-          citas: citasRes.data.length,
+          citas: citasData.length,
           citasPendientes,
           citasCompletadas
         });

@@ -29,17 +29,19 @@ const Pacientes = () => {
     cargarPacientes();
   }, []);
 
-  const cargarPacientes = async () => {
-    try {
-      const response = await pacientesAPI.getAll();
-      setPacientes(response.data);
-    } catch (error) {
-      console.error('Error cargando pacientes:', error);
-      alert('Error al cargar pacientes');
-    } finally {
-      setLoading(false);
-    }
-  };
+ const cargarPacientes = async () => {
+  try {
+    const response = await pacientesAPI.getAll();
+    // Extraer el array correcto
+    const data = response.data?.data || response.data || [];
+    setPacientes(data);
+  } catch (error) {
+    console.error('Error cargando pacientes:', error);
+    alert('Error al cargar pacientes');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();

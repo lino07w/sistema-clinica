@@ -40,9 +40,15 @@ const Citas = () => {
         pacientesAPI.getAll(),
         medicosAPI.getAll()
       ]);
-      setCitas(citasRes.data);
-      setPacientes(pacientesRes.data);
-      setMedicos(medicosRes.data);
+      
+      // 👇 CAMBIO AQUÍ: Extraer arrays correctamente
+      const citasData = citasRes.data?.data || citasRes.data || [];
+      const pacientesData = pacientesRes.data?.data || pacientesRes.data || [];
+      const medicosData = medicosRes.data?.data || medicosRes.data || [];
+      
+      setCitas(citasData);
+      setPacientes(pacientesData);
+      setMedicos(medicosData);
     } catch (error) {
       console.error('Error cargando datos:', error);
       alert('Error al cargar datos');

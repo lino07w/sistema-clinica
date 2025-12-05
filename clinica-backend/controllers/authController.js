@@ -6,8 +6,11 @@ const USERS_FILE = './data/users.json';
 
 export const login = async (req, res) => {
   try {
+    console.log('📨 Login request body:', req.body); // Para debug
+
     const { username, password } = req.body;
 
+    // Validar que vengan los datos
     if (!username || !password) {
       return res.status(400).json({ 
         success: false, 
@@ -15,8 +18,14 @@ export const login = async (req, res) => {
       });
     }
 
+    // Leer usuarios
     const users = await readJSON(USERS_FILE);
-    const user = users.find(u => u.username === username && u.password === password);
+    console.log('👥 Total usuarios en DB:', users.length);
+
+    // Buscar usuario
+    const user = users.find(u => 
+      u.username === username && u.password === password
+    );
 
     if (!user) {
       return res.status(401).json({ 
@@ -25,7 +34,9 @@ export const login = async (req, res) => {
       });
     }
 
-    // Generar token JWT con el rol incluido
+    console.log('✅ Usuario encontrado:', user.username);
+
+    // Generar token JWT
     const token = jwt.sign(
       { 
         id: user.id, 
@@ -49,6 +60,8 @@ export const login = async (req, res) => {
       pacienteId: user.pacienteId || null
     };
 
+    console.log('🎫 Token generado para:', user.username);
+
     res.json({
       success: true,
       message: 'Login exitoso',
@@ -57,10 +70,11 @@ export const login = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en login:', error);
+    console.error('❌ Error en login:', error);
     res.status(500).json({ 
       success: false, 
-      message: 'Error en el servidor' 
+      message: 'Error en el servidor',
+      error: error.message
     });
   }
 };
