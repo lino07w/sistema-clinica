@@ -20,12 +20,17 @@ const app = express();
 
 /* ===================== MIDDLEWARE ===================== */
 
-// Seguridad con headers
-app.use(helmet());
+// CORS - Configuración permisiva para desarrollo
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-
-// CORS (permisos para frontend)
-app.use(cors(config.cors));
+// Seguridad con headers - DESACTIVADO TEMPORALMENTE para debug CORS
+// app.use(helmet({
+//   crossOriginResourcePolicy: false
+// }));
 
 // Parseo de JSON y formularios
 app.use(express.json());

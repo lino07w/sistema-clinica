@@ -15,42 +15,26 @@ class PacienteController {
 
   // GET /api/pacientes/:id
   getById = asyncHandler(async (req, res) => {
-    try {
-      const paciente = await pacienteService.getById(req.params.id);
-      successResponse(res, paciente, 'Paciente obtenido correctamente');
-    } catch (error) {
-      notFoundResponse(res, error.message);
-    }
+    const paciente = await pacienteService.getById(req.params.id);
+    successResponse(res, paciente, 'Paciente obtenido correctamente');
   });
 
   // POST /api/pacientes
   create = asyncHandler(async (req, res) => {
-    try {
-      const paciente = await pacienteService.create(req.body);
-      successResponse(res, paciente, 'Paciente creado exitosamente', 201);
-    } catch (error) {
-      errorResponse(res, error.message, 400);
-    }
+    const paciente = await pacienteService.create(req.body);
+    successResponse(res, paciente, 'Paciente creado exitosamente', 201);
   });
 
   // PUT /api/pacientes/:id
   update = asyncHandler(async (req, res) => {
-    try {
-      const paciente = await pacienteService.update(req.params.id, req.body);
-      successResponse(res, paciente, 'Paciente actualizado exitosamente');
-    } catch (error) {
-      errorResponse(res, error.message, 400);
-    }
+    const paciente = await pacienteService.update(req.params.id, req.body);
+    successResponse(res, paciente, 'Paciente actualizado exitosamente');
   });
 
   // DELETE /api/pacientes/:id
   delete = asyncHandler(async (req, res) => {
-    try {
-      await pacienteService.delete(req.params.id);
-      successResponse(res, null, 'Paciente eliminado exitosamente');
-    } catch (error) {
-      errorResponse(res, error.message, 400);
-    }
+    await pacienteService.delete(req.params.id);
+    successResponse(res, null, 'Paciente eliminado exitosamente');
   });
 
   // GET /api/pacientes/search?q=...

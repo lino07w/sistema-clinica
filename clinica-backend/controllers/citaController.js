@@ -26,70 +26,54 @@ class CitaController {
   });
 
   getById = asyncHandler(async (req, res) => {
-    try {
-      const cita = await citaService.getById(req.params.id);
-      
-      // Verificar permisos: el usuario debe tener acceso a esta cita
-      if (req.user.rol === 'medico' && cita.medicoId !== req.user.medicoId) {
-        return errorResponse(res, 'No tienes permiso para ver esta cita', 403);
-      }
-      
-      if (req.user.rol === 'paciente' && cita.pacienteId !== req.user.pacienteId) {
-        return errorResponse(res, 'No tienes permiso para ver esta cita', 403);
-      }
-      
-      successResponse(res, cita, 'Cita obtenida correctamente');
-    } catch (error) {
-      notFoundResponse(res, error.message);
+    const cita = await citaService.getById(req.params.id);
+    
+    // Verificar permisos: el usuario debe tener acceso a esta cita
+    if (req.user.rol === 'medico' && cita.medicoId !== req.user.medicoId) {
+      return errorResponse(res, 'No tienes permiso para ver esta cita', 403);
     }
+    
+    if (req.user.rol === 'paciente' && cita.pacienteId !== req.user.pacienteId) {
+      return errorResponse(res, 'No tienes permiso para ver esta cita', 403);
+    }
+    
+    successResponse(res, cita, 'Cita obtenida correctamente');
   });
 
   create = asyncHandler(async (req, res) => {
-    try {
-      // Solo Admin y Recepcionista pueden crear citas (validado en rutas)
-      const cita = await citaService.create(req.body);
-      successResponse(res, cita, 'Cita creada exitosamente', 201);
-    } catch (error) {
-      errorResponse(res, error.message, 400);
-    }
+    // Solo Admin y Recepcionista pueden crear citas (validado en rutas)
+    const cita = await citaService.create(req.body);
+    successResponse(res, cita, 'Cita creada exitosamente', 201);
   });
 
   update = asyncHandler(async (req, res) => {
-    try {
-      const citaExistente = await citaService.getById(req.params.id);
-      
-      // Verificar permisos según el rol
-      if (req.user.rol === 'medico') {
-        // El médico solo puede actualizar sus propias citas y solo el estado
-        if (citaExistente.medicoId !== req.user.medicoId) {
-          return errorResponse(res, 'No tienes permiso para actualizar esta cita', 403);
-        }
-        
-        // El médico solo puede cambiar el estado
-        const datosPermitidos = {
-          estado: req.body.estado
-        };
-        
-        const cita = await citaService.update(req.params.id, datosPermitidos);
-        return successResponse(res, cita, 'Estado de cita actualizado exitosamente');
+    const citaExistente = await citaService.getById(req.params.id);
+    
+    // Verificar permisos según el rol
+    if (req.user.rol === 'medico') {
+      // El médico solo puede actualizar sus propias citas y solo el estado
+      if (citaExistente.medicoId !== req.user.medicoId) {
+        return errorResponse(res, 'No tienes permiso para actualizar esta cita', 403);
       }
       
-      // Admin y Recepcionista pueden actualizar todo
-      const cita = await citaService.update(req.params.id, req.body);
-      successResponse(res, cita, 'Cita actualizada exitosamente');
-    } catch (error) {
-      errorResponse(res, error.message, 400);
+      // El médico solo puede cambiar el estado
+      const datosPermitidos = {
+        estado: req.body.estado
+      };
+      
+      const cita = await citaService.update(req.params.id, datosPermitidos);
+      return successResponse(res, cita, 'Estado de cita actualizado exitosamente');
     }
+    
+    // Admin y Recepcionista pueden actualizar todo
+    const cita = await citaService.update(req.params.id, req.body);
+    successResponse(res, cita, 'Cita actualizada exitosamente');
   });
 
   delete = asyncHandler(async (req, res) => {
-    try {
-      // Solo Admin puede eliminar (validado en rutas)
-      await citaService.delete(req.params.id);
-      successResponse(res, null, 'Cita eliminada exitosamente');
-    } catch (error) {
-      errorResponse(res, error.message, 400);
-    }
+    // Solo Admin puede eliminar (validado en rutas)
+    await citaService.delete(req.params.id);
+    successResponse(res, null, 'Cita eliminada exitosamente');
   });
 
   getByPaciente = asyncHandler(async (req, res) => {
