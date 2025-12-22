@@ -64,7 +64,8 @@ const Register = () => {
         dataToSend.matricula = formData.matricula;
       }
 
-      const response = await axios.post('http://localhost:3000/api/auth/register', dataToSend);
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const response = await axios.post(`${API_URL}/api/auth/register`, dataToSend);
 
       if (response.data.success) {
         alert(response.data.message);

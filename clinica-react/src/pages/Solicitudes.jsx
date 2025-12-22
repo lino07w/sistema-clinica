@@ -26,9 +26,10 @@ const Solicitudes = () => {
   }, []);
 
   const cargarSolicitudes = async () => {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     try {
       const response = await axios.get(
-        'http://localhost:3000/api/usuarios/pendientes',
+        `${API_URL}/api/usuarios/pendientes`,
         axiosConfig
       );
       const data = response.data?.data || response.data || [];
@@ -47,9 +48,10 @@ const Solicitudes = () => {
   };
 
   const confirmarAprobacion = async () => {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     try {
       await axios.post(
-        `http://localhost:3000/api/usuarios/${solicitudAAprobar}/aprobar`,
+        `${API_URL}/api/usuarios/${solicitudAAprobar}/aprobar`,
         {},
         axiosConfig
       );
@@ -75,9 +77,10 @@ const Solicitudes = () => {
       return;
     }
 
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     try {
       await axios.post(
-        `http://localhost:3000/api/usuarios/${solicitudSeleccionada.id}/rechazar`,
+        `${API_URL}/api/usuarios/${solicitudSeleccionada.id}/rechazar`,
         { motivo: motivoRechazo },
         axiosConfig
       );

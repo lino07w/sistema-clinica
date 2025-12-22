@@ -1,4 +1,4 @@
-import swaggerJsdoc from 'swagger-jsdoc';
+ import swaggerJsdoc from 'swagger-jsdoc';
 
 const options = {
     definition: {
@@ -13,8 +13,12 @@ const options = {
         },
         servers: [
             {
-                url: 'http://localhost:3000',
-                description: 'Servidor de Desarrollo',
+                url: process.env.NODE_ENV === 'production' 
+                    ? 'https://clinica-backend.onrender.com'  // Ajusta con tu URL real
+                    : 'http://localhost:3000',
+                description: process.env.NODE_ENV === 'production' 
+                    ? 'Servidor de Producción'
+                    : 'Servidor de Desarrollo',
             },
         ],
         components: {
@@ -32,7 +36,7 @@ const options = {
             },
         ],
     },
-    apis: ['./routes/*.js'], // Documentación en las rutas
+    apis: ['./routes/*.js'],
 };
 
 const specs = swaggerJsdoc(options);
