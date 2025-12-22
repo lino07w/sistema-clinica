@@ -1,79 +1,121 @@
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { loginSchema } from '../schemas/authSchema';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 const Login = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  
-  const { login } = useAuth();
   const navigate = useNavigate();
+  const { login } = useAuth();
+  const { addToast } = useToast();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
+  const { register, handleSubmit, formState: { errors, instanceId }, setError: setFormError } = useForm({
+    resolver: zodResolver(loginSchema)
+  });
 
-    if (!username || !password) {
-      setError('Por favor complete todos los campos');
-      return;
-    }
+  const [globalError, setGlobalError] = useState('');
+  const [loading, setLoading] = useState(false);
 
+  const onSubmit = async (data) => {
+    setGlobalError('');
     setLoading(true);
-    const result = await login(username, password);
 
-    if (result.success) {
-      navigate('/');
-    } else {
-      setError(result.message || 'Error al iniciar sesión');
+    try {
+      // Mapear campos de RHF a lo que espera el context
+      const loginPayload = {
+        usernameOrEmail: data.identificador,
+        password: data.password
+      };
+
+      console.log('🔐 Intentando login...'); // DEBUG
+      await login(loginPayload);
+      console.log('✅ Login exitoso, redirigiendo...'); // DEBUG
+      addToast('Bienvenido de nuevo', 'success');
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('❌ Error en login:', err); // DEBUG
+      const msg = err.response?.data?.message || 'Error al iniciar sesión';
+      setGlobalError(msg);
+      addToast(msg, 'error');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
     <div style={styles.container}>
       <div style={styles.card}>
         <div style={styles.header}>
-          <div style={styles.icon}>⚕️</div>
-          <h1 style={styles.title}>Sistema Clínica</h1>
-          <p style={styles.subtitle}>Ingrese sus credenciales para acceder</p>
+          <h1 style={styles.title}>Sistema de Clínica</h1>
+          <p style={styles.subtitle}>Inicia sesión en tu cuenta</p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Usuario</label>
+        {globalError && (
+          <div style={styles.error}>
+            ⚠️ {globalError}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit(onSubmit)} style={styles.form}>
+          <div style={styles.inputGroup}>
+            <label style={styles.label}>Usuario o Email</label>
             <input
+              style={{ ...styles.input, borderColor: errors.identificador ? '#DC2626' : '#E2E8F0' }}
               type="text"
-              style={styles.input}
-              placeholder="Ingrese su usuario"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Ingresa tu usuario o email"
+              {...register('identificador')}
               disabled={loading}
+              autoFocus
             />
+            {errors.identificador && (
+              <span style={styles.errorText}>{errors.identificador.message}</span>
+            )}
           </div>
 
-          <div style={styles.formGroup}>
+          <div style={styles.inputGroup}>
             <label style={styles.label}>Contraseña</label>
             <input
+              style={{ ...styles.input, borderColor: errors.password ? '#DC2626' : '#E2E8F0' }}
               type="password"
-              style={styles.input}
-              placeholder="Ingrese su contraseña"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Ingresa tu contraseña"
+              {...register('password')}
               disabled={loading}
             />
+            {errors.password && (
+              <span style={styles.errorText}>{errors.password.message}</span>
+            )}
           </div>
 
-          {error && <div style={styles.error}>{error}</div>}
-
-          <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? 'Ingresando...' : 'Ingresar'}
+          <button
+            type="submit"
+            style={{ ...styles.button, opacity: loading ? 0.7 : 1 }}
+            disabled={loading}
+          >
+            {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
           </button>
         </form>
 
         <div style={styles.footer}>
-          <small>Usuario demo: <strong>admin</strong> / Contraseña: <strong>123456</strong></small>
+          <p style={styles.footerText}>
+            ¿No tienes cuenta?{' '}
+            <span
+              style={styles.link}
+              onClick={() => navigate('/register')}
+            >
+              Regístrate aquí
+            </span>
+          </p>
+        </div>
+
+        <div style={styles.info}>
+          <p style={styles.infoTitle}>💡 Usuarios de prueba:</p>
+          <ul style={styles.infoList}>
+            <li><strong>Admin:</strong> admin / 123456</li>
+            <li><strong>Médico:</strong> garcia@clinica.com / 123456</li>
+            <li><strong>Recepcionista:</strong> recepcion@clinica.com / 123456</li>
+          </ul>
         </div>
       </div>
     </div>
@@ -82,77 +124,121 @@ const Login = () => {
 
 const styles = {
   container: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: '100vw',
-    height: '100vh',
+    minHeight: '100vh',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '2rem',
     background: 'linear-gradient(135deg, #0A4D68 0%, #088395 100%)',
-    overflow: 'auto',
+    padding: '1rem',
   },
   card: {
     background: 'white',
-    padding: '3rem',
-    borderRadius: '1.5rem',
-    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    padding: 'clamp(2rem, 4vw, 3rem)',
+    borderRadius: '1rem',
+    boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
     width: '100%',
-    maxWidth: '480px',
+    maxWidth: '450px',
   },
-  header: { textAlign: 'center', marginBottom: '2rem' },
-  icon: {
-    width: '80px',
-    height: '80px',
-    margin: '0 auto 1.5rem',
-    background: 'linear-gradient(135deg, #0A4D68, #00C9A7)',
-    borderRadius: '1.25rem',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '2.5rem',
+  header: {
+    marginBottom: '2rem',
+    textAlign: 'center',
   },
-  title: { color: '#0A4D68', marginBottom: '0.5rem', fontSize: '2rem', fontWeight: '700' },
-  subtitle: { color: '#64748B', fontSize: '1rem' },
-  formGroup: { marginBottom: '1.5rem' },
-  label: { display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#1E293B', fontSize: '0.95rem' },
-  input: {
-    width: '100%',
-    padding: '1rem',
-    border: '2px solid #E2E8F0',
-    borderRadius: '0.75rem',
-    fontSize: '1rem',
-    boxSizing: 'border-box',
+  title: {
+    fontSize: 'clamp(1.75rem, 5vw, 2.5rem)',
+    color: '#0A4D68',
+    marginBottom: '0.5rem',
+    fontWeight: '700',
+  },
+  subtitle: {
+    color: '#64748B',
+    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
+    margin: 0,
   },
   error: {
     background: '#FEE2E2',
-    color: '#991B1B',
-    padding: '1rem',
-    borderRadius: '0.75rem',
+    color: '#DC2626',
+    padding: '0.75rem',
+    borderRadius: '0.5rem',
     marginBottom: '1.5rem',
-    borderLeft: '4px solid #EF4444',
+    fontSize: 'clamp(0.875rem, 2vw, 0.95rem)',
+  },
+  form: {
+    width: '100%',
+  },
+  inputGroup: {
+    marginBottom: '1.5rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.25rem',
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: '0.85rem',
+    marginTop: '0.25rem',
+  },
+  label: {
+    display: 'block',
+    marginBottom: '0.5rem',
+    color: '#1E293B',
+    fontWeight: '500',
+    fontSize: 'clamp(0.875rem, 2vw, 0.95rem)',
+  },
+  input: {
+    width: '100%',
+    padding: 'clamp(0.75rem, 2vw, 1rem)',
+    border: '2px solid #E2E8F0',
+    borderRadius: '0.5rem',
+    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
+    boxSizing: 'border-box',
+    transition: 'border-color 0.2s',
   },
   button: {
     width: '100%',
-    padding: '1rem',
+    padding: 'clamp(0.75rem, 2vw, 1rem)',
     background: 'linear-gradient(135deg, #0A4D68, #088395)',
     color: 'white',
     border: 'none',
-    borderRadius: '0.75rem',
-    fontSize: '1.1rem',
+    borderRadius: '0.5rem',
+    fontSize: 'clamp(0.95rem, 2vw, 1.1rem)',
     fontWeight: '600',
     cursor: 'pointer',
+    marginTop: '0.5rem',
+    transition: 'transform 0.2s',
   },
   footer: {
     marginTop: '2rem',
-    paddingTop: '1.5rem',
-    borderTop: '1px solid #E2E8F0',
     textAlign: 'center',
+  },
+  footerText: {
     color: '#64748B',
+    fontSize: 'clamp(0.875rem, 2vw, 0.95rem)',
+    margin: 0,
+  },
+  link: {
+    color: '#0A4D68',
+    fontWeight: '600',
+    cursor: 'pointer',
+    textDecoration: 'underline',
+  },
+  info: {
+    marginTop: '2rem',
+    padding: '1rem',
+    background: '#F8FAFC',
+    borderRadius: '0.5rem',
+    border: '1px solid #E2E8F0',
+  },
+  infoTitle: {
+    fontSize: 'clamp(0.875rem, 2vw, 0.95rem)',
+    fontWeight: '600',
+    color: '#475569',
+    marginBottom: '0.5rem',
+  },
+  infoList: {
+    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
+    color: '#64748B',
+    paddingLeft: '1.25rem',
+    margin: 0,
+    lineHeight: '1.8',
   },
 };
 

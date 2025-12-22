@@ -21,4 +21,5 @@ export const authorize = (...rolesPermitidos) => {
 export const isAdmin = authorize('administrador');
 export const isAdminOrRecepcionista = authorize('administrador', 'recepcionista');
 export const isAdminOrMedico = authorize('administrador', 'medico');
+export const isStaff = authorize('administrador', 'medico', 'recepcionista');
 export const isAnyRole = authorize('administrador', 'medico', 'recepcionista', 'paciente');

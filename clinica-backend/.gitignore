@@ -12,6 +12,10 @@ yarn-error.log*
 # Data files (JSON storage)
 data/*.json
 !data/.gitkeep
+!data/facturas.json
+!data/configuracion.json
+!data/historial.json
+!data/audit_logs.json
 
 # Logs
 logs/

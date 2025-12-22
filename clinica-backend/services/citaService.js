@@ -1,103 +1,120 @@
-/**
- * Servicio de Citas
- */
-
-import storage from '../utils/fileStorage.js';
+import { Op } from 'sequelize';
+import db from '../models/index.js';
+const { Cita, Paciente, Medico } = db;
 
 class CitaService {
   async getAll(filters = {}) {
-    return await storage.find('citas', filters);
+    return await Cita.findAll({
+      where: filters,
+      include: [
+        { model: Paciente, as: 'paciente', attributes: ['id', 'nombre', 'dni'] },
+        { model: Medico, as: 'medico', attributes: ['id', 'nombre', 'especialidad'] }
+      ],
+      order: [['fecha', 'DESC'], ['hora', 'DESC']]
+    });
   }
 
   async getById(id) {
-    const cita = await storage.findById('citas', id);
+    const cita = await Cita.findByPk(id, {
+      include: [
+        { model: Paciente, as: 'paciente' },
+        { model: Medico, as: 'medico' }
+      ]
+    });
     if (!cita) throw new Error('Cita no encontrada');
     return cita;
   }
 
   async create(citaData) {
     // Verificar que el paciente existe
-    const paciente = await storage.findById('pacientes', citaData.pacienteId);
+    const paciente = await Paciente.findByPk(citaData.pacienteId);
     if (!paciente) throw new Error('Paciente no encontrado');
 
     // Verificar que el médico existe
-    const medico = await storage.findById('medicos', citaData.medicoId);
+    const medico = await Medico.findByPk(citaData.medicoId);
     if (!medico) throw new Error('Médico no encontrado');
 
-    // Verificar disponibilidad del médico
-    const citaExistente = await storage.findOne('citas', {
-      medicoId: citaData.medicoId,
-      fecha: citaData.fecha,
-      hora: citaData.hora
+    // Verificar disponibilidad (no dos citas a la misma hora con el mismo médico)
+    const conflicto = await Cita.findOne({
+      where: {
+        medicoId: citaData.medicoId,
+        fecha: citaData.fecha,
+        hora: citaData.hora,
+        estado: { [Op.ne]: 'cancelada' }
+      }
     });
 
-    if (citaExistente && citaExistente.estado !== 'cancelada') {
-      throw new Error('El médico ya tiene una cita en ese horario');
+    if (conflicto) {
+      throw new Error('Ya existe una cita programada para ese médico en ese horario');
     }
 
-    // Crear cita con estado por defecto
-    return await storage.create('citas', {
-      ...citaData,
-      estado: citaData.estado || 'programada'
-    });
+    return await Cita.create(citaData);
   }
 
   async update(id, citaData) {
-    const existing = await storage.findById('citas', id);
-    if (!existing) throw new Error('Cita no encontrada');
+    const cita = await Cita.findByPk(id);
+    if (!cita) throw new Error('Cita no encontrada');
 
-    // Si se cambia el médico, fecha u hora, verificar disponibilidad
-    if (citaData.medicoId || citaData.fecha || citaData.hora) {
-      const medicoId = citaData.medicoId || existing.medicoId;
-      const fecha = citaData.fecha || existing.fecha;
-      const hora = citaData.hora || existing.hora;
+    // Si se está cambiando la hora o fecha, verificar disponibilidad
+    if ((citaData.fecha && citaData.fecha !== cita.fecha) ||
+      (citaData.hora && citaData.hora !== cita.hora) ||
+      (citaData.medicoId && citaData.medicoId !== cita.medicoId)) {
 
-      const conflicto = await storage.findOne('citas', {
-        medicoId,
-        fecha,
-        hora
+      const conflicto = await Cita.findOne({
+        where: {
+          id: { [Op.ne]: id },
+          medicoId: citaData.medicoId || cita.medicoId,
+          fecha: citaData.fecha || cita.fecha,
+          hora: citaData.hora || cita.hora,
+          estado: { [Op.ne]: 'cancelada' }
+        }
       });
 
-      if (conflicto && conflicto.id !== id && conflicto.estado !== 'cancelada') {
-        throw new Error('El médico ya tiene una cita en ese horario');
+      if (conflicto) {
+        throw new Error('Ya existe una cita programada para ese médico en ese horario');
       }
     }
 
-    return await storage.updateById('citas', id, citaData);
+    return await cita.update(citaData);
   }
 
   async delete(id) {
-    const existing = await storage.findById('citas', id);
-    if (!existing) throw new Error('Cita no encontrada');
+    const cita = await Cita.findByPk(id);
+    if (!cita) throw new Error('Cita no encontrada');
 
-    await storage.deleteById('citas', id);
+    await cita.destroy();
     return true;
   }
 
   async getByPaciente(pacienteId) {
-    return await storage.find('citas', { pacienteId });
+    return await Cita.findAll({
+      where: { pacienteId },
+      include: [
+        { model: Medico, as: 'medico', attributes: ['nombre', 'especialidad'] }
+      ],
+      order: [['fecha', 'DESC'], ['hora', 'DESC']]
+    });
   }
 
   async getByMedico(medicoId) {
-    return await storage.find('citas', { medicoId });
+    return await Cita.findAll({
+      where: { medicoId },
+      include: [
+        { model: Paciente, as: 'paciente', attributes: ['nombre', 'dni'] }
+      ],
+      order: [['fecha', 'DESC'], ['hora', 'DESC']]
+    });
   }
 
   async getByFecha(fecha) {
-    return await storage.find('citas', { fecha });
-  }
-
-  async getStats() {
-    const citas = await storage.read('citas');
-    const hoy = new Date().toISOString().split('T')[0];
-
-    return {
-      total: citas.length,
-      hoy: citas.filter(c => c.fecha === hoy).length,
-      programadas: citas.filter(c => c.estado === 'programada').length,
-      confirmadas: citas.filter(c => c.estado === 'confirmada').length,
-      completadas: citas.filter(c => c.estado === 'completada').length,
-      canceladas: citas.filter(c => c.estado === 'cancelada').length
-    };
+    return await Cita.findAll({
+      where: { fecha },
+      include: [
+        { model: Paciente, as: 'paciente', attributes: ['nombre', 'dni'] },
+        { model: Medico, as: 'medico', attributes: ['nombre', 'especialidad'] }
+      ],
+      order: [['hora', 'ASC']]
+    });
   }
 }
 

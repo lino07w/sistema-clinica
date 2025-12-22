@@ -274,3 +274,11 @@ MIT
 ---
 
 **Â¡Backend listo para conectar con el frontend!** ðŸŽ‰
+## Nota de configuración de base de datos
+
+Ejemplo de variable para entorno local (sin Docker):
+DATABASE_URL=postgres://postgres:change_me@localhost:5432/clinica
+
+Si levantas con Docker Compose (desde la raíz del monorepo), usa:
+DATABASE_URL=postgres://postgres:change_me@db:5432/clinica
+

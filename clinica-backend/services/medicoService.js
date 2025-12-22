@@ -1,82 +1,85 @@
-/**
- * Servicio de Médicos
- */
-
-import storage from '../utils/fileStorage.js';
+import { Op } from 'sequelize';
+import db from '../models/index.js';
+const { Medico } = db;
 
 class MedicoService {
   async getAll(filters = {}) {
-    return await storage.find('medicos', filters);
+    return await Medico.findAll({
+      where: filters,
+      order: [['nombre', 'ASC']]
+    });
   }
 
   async getById(id) {
-    const medico = await storage.findById('medicos', id);
+    const medico = await Medico.findByPk(id);
     if (!medico) throw new Error('Médico no encontrado');
     return medico;
   }
 
   async create(medicoData) {
-    // Verificar DNI duplicado
-    const existingDni = await storage.findOne('medicos', { dni: medicoData.dni });
-    if (existingDni) throw new Error('Ya existe un médico con este DNI');
-
     // Verificar matrícula duplicada
-    const existingMatricula = await storage.findOne('medicos', { 
-      matricula: medicoData.matricula 
+    const existingMatricula = await Medico.findOne({
+      where: { matricula: medicoData.matricula }
     });
     if (existingMatricula) throw new Error('Ya existe un médico con esta matrícula');
 
-    return await storage.create('medicos', { ...medicoData, activo: true });
+    return await Medico.create({ ...medicoData, activo: true });
   }
 
   async update(id, medicoData) {
-    const existing = await storage.findById('medicos', id);
-    if (!existing) throw new Error('Médico no encontrado');
-
-    // Verificar DNI duplicado si cambió
-    if (medicoData.dni && medicoData.dni !== existing.dni) {
-      const duplicateDni = await storage.findOne('medicos', { dni: medicoData.dni });
-      if (duplicateDni) throw new Error('Ya existe un médico con este DNI');
-    }
+    const medico = await Medico.findByPk(id);
+    if (!medico) throw new Error('Médico no encontrado');
 
     // Verificar matrícula duplicada si cambió
-    if (medicoData.matricula && medicoData.matricula !== existing.matricula) {
-      const duplicateMatricula = await storage.findOne('medicos', { 
-        matricula: medicoData.matricula 
+    if (medicoData.matricula && medicoData.matricula !== medico.matricula) {
+      const duplicateMatricula = await Medico.findOne({
+        where: {
+          matricula: medicoData.matricula,
+          id: { [Op.ne]: id }
+        }
       });
       if (duplicateMatricula) throw new Error('Ya existe un médico con esta matrícula');
     }
 
-    return await storage.updateById('medicos', id, medicoData);
+    return await medico.update(medicoData);
   }
 
   async delete(id) {
-    const existing = await storage.findById('medicos', id);
-    if (!existing) throw new Error('Médico no encontrado');
+    const medico = await Medico.findByPk(id);
+    if (!medico) throw new Error('Médico no encontrado');
 
-    const citas = await storage.find('citas', { medicoId: id });
-    if (citas.length > 0) {
+    // Verificar si tiene citas asociadas
+    const { Cita } = db;
+    const citasCount = await Cita.count({ where: { medicoId: id } });
+    if (citasCount > 0) {
       throw new Error('No se puede eliminar el médico porque tiene citas asociadas');
     }
 
-    await storage.deleteById('medicos', id);
+    await medico.destroy();
     return true;
   }
 
   async search(query) {
-    const allMedicos = await storage.read('medicos');
-    if (!query) return allMedicos;
+    if (!query) return await this.getAll();
 
     const searchQuery = query.toLowerCase();
-    return allMedicos.filter(medico => 
-      medico.nombre.toLowerCase().includes(searchQuery) ||
-      medico.dni.includes(searchQuery) ||
-      medico.especialidad.toLowerCase().includes(searchQuery)
-    );
+    return await Medico.findAll({
+      where: {
+        [Op.or]: [
+          { nombre: { [Op.iLike]: `%${searchQuery}%` } },
+          { especialidad: { [Op.iLike]: `%${searchQuery}%` } },
+          { matricula: { [Op.iLike]: `%${searchQuery}%` } }
+        ]
+      },
+      order: [['nombre', 'ASC']]
+    });
   }
 
   async getByEspecialidad(especialidad) {
-    return await storage.find('medicos', { especialidad, activo: true });
+    return await Medico.findAll({
+      where: { especialidad, activo: true },
+      order: [['nombre', 'ASC']]
+    });
   }
 }
 

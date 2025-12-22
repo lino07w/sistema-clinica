@@ -1,33 +1,59 @@
 import { useState, useEffect } from 'react';
 import { citasAPI, pacientesAPI, medicosAPI } from '../services/api';
+import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
+import ContentWrapper from '../components/ContentWrapper';
 import Can from '../components/Can';
+import SearchBar from '../components/SearchBar';
+import Pagination from '../components/Pagination';
+import TableHeader from '../components/TableHeader';
+import { useTableData } from '../hooks/useTableData';
+import ExportButtons from '../components/ExportButtons';
+import Spinner from '../components/Spinner';
+import ConfirmModal from '../components/ConfirmModal';
+
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { citaSchema } from '../schemas/citaSchema';
+
+// ... imports anteriores se mantienen arriba
 
 const Citas = () => {
-  const { isMedico } = useAuth();
+  const { user, isMedico } = useAuth();
+  const { addToast } = useToast();
   const [citas, setCitas] = useState([]);
   const [pacientes, setPacientes] = useState([]);
   const [medicos, setMedicos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState(null);
-  const [formData, setFormData] = useState({
-    pacienteId: '',
-    medicoId: '',
-    fecha: '',
-    hora: '',
-    motivo: '',
-    estado: 'programada'
+
+  // Guardar datos temporales para mostrar info en modo edición médico
+  const [citaEditandoData, setCitaEditandoData] = useState(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [citaAEliminar, setCitaAEliminar] = useState(null);
+
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm({
+    resolver: zodResolver(citaSchema)
   });
 
-  const handleRowHover = (e) => {
-    e.currentTarget.style.background = '#F8FAFC';
-  };
+  // Watch para condicionales si fuera necesario, o para debugging
+  const watchEstado = watch('estado');
 
-  const handleRowLeave = (e) => {
-    e.currentTarget.style.background = 'transparent';
-  };
+  const {
+    searchTerm,
+    setSearchTerm,
+    currentPage,
+    setCurrentPage,
+    itemsPerPage,
+    setItemsPerPage,
+    sortConfig,
+    handleSort,
+    paginatedData,
+    totalPages,
+    totalItems,
+  } = useTableData(citas, 10);
 
   useEffect(() => {
     cargarDatos();
@@ -35,54 +61,74 @@ const Citas = () => {
 
   const cargarDatos = async () => {
     try {
-      const [citasRes, pacientesRes, medicosRes] = await Promise.all([
-        citasAPI.getAll(),
-        pacientesAPI.getAll(),
-        medicosAPI.getAll()
-      ]);
-      
-      // 👇 CAMBIO AQUÍ: Extraer arrays correctamente
-      const citasData = citasRes.data?.data || citasRes.data || [];
-      const pacientesData = pacientesRes.data?.data || pacientesRes.data || [];
-      const medicosData = medicosRes.data?.data || medicosRes.data || [];
-      
-      setCitas(citasData);
-      setPacientes(pacientesData);
-      setMedicos(medicosData);
+      if (isMedico()) {
+        const citasRes = await citasAPI.getAll();
+        const citasData = citasRes.data?.data || citasRes.data || [];
+        setCitas(citasData);
+        setPacientes([]);
+        setMedicos([]);
+      } else {
+        const [citasRes, pacientesRes, medicosRes] = await Promise.all([
+          citasAPI.getAll(),
+          pacientesAPI.getAll(),
+          medicosAPI.getAll()
+        ]);
+
+        const citasData = citasRes.data?.data || citasRes.data || [];
+        const pacientesData = pacientesRes.data?.data || pacientesRes.data || [];
+        const medicosData = medicosRes.data?.data || medicosRes.data || [];
+
+        const loadedMedicos = medicosRes.data?.data || medicosRes.data || [];
+
+        // Si el usuario es médico, asegurar que esté en la lista para el dropdown
+        if (isMedico() && !loadedMedicos.find(m => m.id === user.medicoId || m.email === user.email)) {
+          loadedMedicos.push({
+            id: user.medicoId || 'temp-id',
+            nombre: user.nombre,
+            email: user.email,
+            especialidad: user.especialidad || 'Médico'
+          });
+        }
+
+        setCitas(citasData);
+        setPacientes(pacientesData);
+        setMedicos(loadedMedicos);
+      }
     } catch (error) {
       console.error('Error cargando datos:', error);
-      alert('Error al cargar datos');
+      addToast('Error al cargar datos', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const onSubmit = async (data) => {
     try {
       if (editando) {
-        // Si es médico, solo enviar el estado
-        const dataToSend = isMedico() 
-          ? { estado: formData.estado }
-          : formData;
-        
+        // Si es médico, solo enviamos el estado (aunque el schema valida todo, la API ignorará lo demás o lo sobrescribimos)
+        const dataToSend = isMedico() ? { estado: data.estado } : data;
+
         await citasAPI.update(editando, dataToSend);
-        alert('Cita actualizada correctamente');
+        addToast('Cita actualizada correctamente', 'success');
       } else {
-        await citasAPI.create(formData);
-        alert('Cita creada correctamente');
+        await citasAPI.create(data);
+        addToast('Cita creada correctamente', 'success');
       }
       setShowModal(false);
-      resetForm();
+      reset();
+      setEditando(null);
+      setCitaEditandoData(null);
       cargarDatos();
     } catch (error) {
-      alert(error.response?.data?.message || 'Error al guardar cita');
+      addToast(error.response?.data?.message || 'Error al guardar cita', 'error');
     }
   };
 
   const handleEdit = (cita) => {
     setEditando(cita.id);
-    setFormData({
+    setCitaEditandoData(cita); // Guardar para visualización estática (médicos)
+
+    reset({
       pacienteId: cita.pacienteId,
       medicoId: cita.medicoId,
       fecha: cita.fecha,
@@ -90,39 +136,78 @@ const Citas = () => {
       motivo: cita.motivo || '',
       estado: cita.estado
     });
+
     setShowModal(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Está seguro de eliminar esta cita?')) return;
-    try {
-      await citasAPI.delete(id);
-      alert('Cita eliminada correctamente');
-      cargarDatos();
-    } catch (error) {
-      alert(error.response?.data?.message || 'Error al eliminar cita');
-    }
-  };
+  const handleNuevo = () => {
+    setEditando(null);
+    setCitaEditandoData(null);
 
-  const resetForm = () => {
-    setFormData({
+    let initialMedicoId = '';
+    if (isMedico()) {
+      if (user.medicoId) {
+        initialMedicoId = user.medicoId;
+      } else {
+        // Fallback: buscar por email en la lista de médicos
+        const currentMedico = medicos.find(m => m.email === user.email);
+        if (currentMedico) initialMedicoId = currentMedico.id;
+      }
+    }
+
+    reset({
       pacienteId: '',
-      medicoId: '',
+      medicoId: initialMedicoId,
       fecha: '',
       hora: '',
       motivo: '',
       estado: 'programada'
     });
-    setEditando(null);
+    setShowModal(true);
+  };
+
+  const handleDelete = (id) => {
+    setCitaAEliminar(id);
+    setShowConfirm(true);
+  };
+
+  const confirmarEliminacion = async () => {
+    try {
+      await citasAPI.delete(citaAEliminar);
+      addToast('Cita eliminada correctamente', 'success');
+      cargarDatos();
+    } catch (error) {
+      addToast(error.response?.data?.message || 'Error al eliminar cita', 'error');
+    } finally {
+      setShowConfirm(false);
+      setCitaAEliminar(null);
+    }
   };
 
   const getNombrePaciente = (id) => {
+    if (isMedico() && citaEditandoData && citaEditandoData.pacienteId === id) {
+      // Si somos médicos, la lista de pacientes está vacía, intentamos sacar el nombre de la cita si viene del backend poblado, 
+      // o retornamos "Paciente ID..." si no tenemos el nombre.
+      // En la implementación actual, citasAPI.getAll devuelve objetos Cita, no populados.
+      // Pero el backend citasController.getAll SÍ popula `pacienteNombre`.
+      return citaEditandoData.pacienteNombre || 'Desconocido';
+    }
     const p = pacientes.find(p => p.id === id);
+    // Fallback si viene populado en la lista general
+    if (!p) {
+      const cita = citas.find(c => c.pacienteId === id);
+      if (cita && cita.pacienteNombre) return cita.pacienteNombre;
+    }
     return p ? p.nombre : 'Desconocido';
   };
 
   const getNombreMedico = (id) => {
     const m = medicos.find(m => m.id === id);
+    // Fallback
+    if (!m) {
+      const cita = citas.find(c => c.medicoId === id);
+      if (cita && cita.medicoNombre) return cita.medicoNombre;
+    }
     return m ? m.nombre : 'Desconocido';
   };
 
@@ -137,228 +222,311 @@ const Citas = () => {
   };
 
   return (
-    <div style={styles.layout}>
+    <>
       <Navbar />
-      <main style={styles.content}>
-        <div style={styles.header}>
-          <h1 style={styles.title}>
-            {isMedico() ? 'Mis Citas' : 'Gestión de Citas'}
-          </h1>
-          
-          {/* Solo Admin y Recepcionista pueden crear citas */}
+      <ContentWrapper>
+        <main style={styles.content}>
+          <div style={styles.header}>
+            <h1 style={styles.title}>
+              {isMedico() ? 'Mis Citas' : 'Gestión de Citas'}
+            </h1>
+
+            <Can roles={['administrador', 'recepcionista']}>
+              <button style={styles.btnPrimary} onClick={handleNuevo}>
+                + Nueva Cita
+              </button>
+            </Can>
+          </div>
+
+          {/* ... resto del JSX de búsqueda y tabla ... */}
+
           <Can roles={['administrador', 'recepcionista']}>
-            <button style={styles.btnPrimary} onClick={() => { resetForm(); setShowModal(true); }}>
-              + Nueva Cita
-            </button>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
+              <div style={{ flex: 1 }}>
+                <SearchBar
+                  value={searchTerm}
+                  onChange={setSearchTerm}
+                  placeholder="Buscar por paciente, médico, fecha..."
+                />
+              </div>
+              <ExportButtons
+                data={citas.map(c => ({
+                  ...c,
+                  paciente: c.pacienteNombre || getNombrePaciente(c.pacienteId),
+                  medico: c.medicoNombre || getNombreMedico(c.medicoId)
+                }))}
+                fileName="Reporte_Citas"
+                title="Reporte de Citas"
+                columns={[
+                  { header: 'Fecha', dataKey: 'fecha' },
+                  { header: 'Hora', dataKey: 'hora' },
+                  { header: 'Paciente', dataKey: 'paciente' },
+                  { header: 'Médico', dataKey: 'medico' },
+                  { header: 'Estado', dataKey: 'estado' },
+                  { header: 'Motivo', dataKey: 'motivo' },
+                ]}
+              />
+            </div>
           </Can>
-        </div>
 
-        {loading ? (
-          <div style={styles.loading}>Cargando citas...</div>
-        ) : (
-          <div style={styles.tableWrapper}>
-            <div style={styles.tableContainer}>
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    <th style={styles.th}>Paciente</th>
-                    <th style={styles.th}>Médico</th>
-                    <th style={styles.th}>Fecha</th>
-                    <th style={styles.th}>Hora</th>
-                    <th style={styles.th}>Motivo</th>
-                    <th style={styles.th}>Estado</th>
-                    <th style={styles.th}>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {citas.length === 0 ? (
-                    <tr>
-                      <td colSpan="7" style={styles.empty}>No hay citas registradas</td>
-                    </tr>
-                  ) : (
-                    citas.map(c => (
-                      <tr 
-                        key={c.id} 
-                        style={styles.tr}
-                        onMouseEnter={handleRowHover}
-                        onMouseLeave={handleRowLeave}
-                      >
-                        <td style={styles.td}>{getNombrePaciente(c.pacienteId)}</td>
-                        <td style={styles.td}>{getNombreMedico(c.medicoId)}</td>
-                        <td style={styles.td}>{c.fecha}</td>
-                        <td style={styles.td}>{c.hora}</td>
-                        <td style={styles.td}>{c.motivo || '-'}</td>
-                        <td style={styles.td}>
-                          <span style={{...styles.badge, background: getBadgeColor(c.estado)}}>
-                            {c.estado}
-                          </span>
-                        </td>
-                        <td style={styles.tdActions}>
-                          {/* Admin, Recepcionista y Médico pueden editar */}
-                          <Can roles={['administrador', 'recepcionista', 'medico']}>
-                            <button style={styles.btnEdit} onClick={() => handleEdit(c)}>
-                              {isMedico() ? 'Estado' : 'Editar'}
-                            </button>
-                          </Can>
-                          
-                          {/* Solo Admin puede eliminar */}
-                          <Can roles={['administrador']}>
-                            <button style={styles.btnDelete} onClick={() => handleDelete(c.id)}>
-                              Eliminar
-                            </button>
-                          </Can>
-                        </td>
+          {loading ? (
+            <Spinner />
+          ) : (
+            <>
+              <div style={styles.tableWrapper}>
+                <div style={styles.tableContainer}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <Can roles={['administrador', 'recepcionista']}>
+                          <TableHeader
+                            column="pacienteId" // Ordenar por ID es raro, pero funcional
+                            label="Paciente"
+                            sortConfig={sortConfig}
+                            onSort={handleSort}
+                          />
+                          <TableHeader
+                            column="medicoId"
+                            label="Médico"
+                            sortConfig={sortConfig}
+                            onSort={handleSort}
+                          />
+                        </Can>
+                        <Can roles={['medico']}>
+                          <th style={styles.th}>Paciente</th>
+                          <th style={styles.th}>Médico</th>
+                        </Can>
+                        <TableHeader
+                          column="fecha"
+                          label="Fecha"
+                          sortConfig={sortConfig}
+                          onSort={handleSort}
+                        />
+                        <TableHeader
+                          column="hora"
+                          label="Hora"
+                          sortConfig={sortConfig}
+                          onSort={handleSort}
+                        />
+                        <th style={styles.th}>Motivo</th>
+                        <TableHeader
+                          column="estado"
+                          label="Estado"
+                          sortConfig={sortConfig}
+                          onSort={handleSort}
+                        />
+                        <th style={styles.th}>Acciones</th>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+                    </thead>
+                    <tbody>
+                      {paginatedData.length === 0 ? (
+                        <tr>
+                          <td colSpan="7" style={styles.empty}>
+                            {searchTerm ? 'No se encontraron resultados' : 'No hay citas registradas'}
+                          </td>
+                        </tr>
+                      ) : (
+                        paginatedData.map(c => (
+                          <tr key={c.id} style={styles.tr}>
+                            {/* Usamos c.pacienteNombre si existe (populate backend) o buscamos en array */}
+                            <td style={styles.td}>{c.pacienteNombre || getNombrePaciente(c.pacienteId)}</td>
+                            <td style={styles.td}>{c.medicoNombre || getNombreMedico(c.medicoId)}</td>
+                            <td style={styles.td}>{c.fecha}</td>
+                            <td style={styles.td}>{c.hora}</td>
+                            <td style={styles.td}>{c.motivo || '-'}</td>
+                            <td style={styles.td}>
+                              <span style={{ ...styles.badge, background: getBadgeColor(c.estado) }}>
+                                {c.estado}
+                              </span>
+                            </td>
+                            <td style={styles.tdActions}>
+                              <Can roles={['administrador', 'recepcionista', 'medico']}>
+                                <button style={styles.btnEdit} onClick={() => handleEdit(c)}>
+                                  {isMedico() ? 'Estado' : 'Editar'}
+                                </button>
+                              </Can>
 
-        {showModal && (
-          <div style={styles.modalOverlay} onClick={() => setShowModal(false)}>
-            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-              <h2 style={styles.modalTitle}>
-                {isMedico() 
-                  ? 'Actualizar Estado de Cita' 
-                  : `${editando ? 'Editar' : 'Nueva'} Cita`
-                }
-              </h2>
-              <form onSubmit={handleSubmit} style={styles.form}>
-                
-                {/* Solo mostrar estos campos si NO es médico */}
-                {!isMedico() && (
-                  <>
-                    <select
-                      style={styles.input}
-                      value={formData.pacienteId}
-                      onChange={(e) => setFormData({...formData, pacienteId: e.target.value})}
-                      required
-                    >
-                      <option value="">Seleccione un paciente</option>
-                      {pacientes.map(p => (
-                        <option key={p.id} value={p.id}>{p.nombre} - {p.dni}</option>
-                      ))}
-                    </select>
-
-                    <select
-                      style={styles.input}
-                      value={formData.medicoId}
-                      onChange={(e) => setFormData({...formData, medicoId: e.target.value})}
-                      required
-                    >
-                      <option value="">Seleccione un médico</option>
-                      {medicos.map(m => (
-                        <option key={m.id} value={m.id}>{m.nombre} - {m.especialidad}</option>
-                      ))}
-                    </select>
-
-                    <input
-                      style={styles.input}
-                      type="date"
-                      value={formData.fecha}
-                      onChange={(e) => setFormData({...formData, fecha: e.target.value})}
-                      required
-                    />
-
-                    <input
-                      style={styles.input}
-                      type="time"
-                      value={formData.hora}
-                      onChange={(e) => setFormData({...formData, hora: e.target.value})}
-                      required
-                    />
-
-                    <input
-                      style={styles.input}
-                      placeholder="Motivo de la consulta (opcional)"
-                      value={formData.motivo}
-                      onChange={(e) => setFormData({...formData, motivo: e.target.value})}
-                    />
-                  </>
-                )}
-
-                {/* Información de la cita para médicos */}
-                {isMedico() && editando && (
-                  <div style={styles.citaInfo}>
-                    <div style={styles.infoRow}>
-                      <strong>Paciente:</strong> {getNombrePaciente(formData.pacienteId)}
-                    </div>
-                    <div style={styles.infoRow}>
-                      <strong>Fecha:</strong> {formData.fecha}
-                    </div>
-                    <div style={styles.infoRow}>
-                      <strong>Hora:</strong> {formData.hora}
-                    </div>
-                    <div style={styles.infoRow}>
-                      <strong>Motivo:</strong> {formData.motivo || 'No especificado'}
-                    </div>
-                  </div>
-                )}
-
-                {/* Campo de estado (todos pueden verlo) */}
-                <select
-                  style={styles.input}
-                  value={formData.estado}
-                  onChange={(e) => setFormData({...formData, estado: e.target.value})}
-                  required
-                >
-                  <option value="programada">Programada</option>
-                  <option value="en_proceso">En Proceso</option>
-                  <option value="completada">Completada</option>
-                  <option value="cancelada">Cancelada</option>
-                </select>
-
-                <div style={styles.modalActions}>
-                  <button type="button" style={styles.btnCancel} onClick={() => setShowModal(false)}>
-                    Cancelar
-                  </button>
-                  <button type="submit" style={styles.btnSubmit}>
-                    {isMedico() ? 'Actualizar Estado' : (editando ? 'Actualizar' : 'Crear')}
-                  </button>
+                              <Can roles={['administrador']}>
+                                <button style={styles.btnDelete} onClick={() => handleDelete(c.id)}>
+                                  Eliminar
+                                </button>
+                              </Can>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              </form>
+              </div>
+
+              {totalItems > 0 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={totalItems}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={setItemsPerPage}
+                />
+              )}
+            </>
+          )}
+
+          {showModal && (
+            <div style={styles.modalOverlay} onClick={() => setShowModal(false)}>
+              <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+                <h2 style={styles.modalTitle}>
+                  {isMedico()
+                    ? 'Actualizar Estado de Cita'
+                    : `${editando ? 'Editar' : 'Nueva'} Cita`
+                  }
+                </h2>
+                <form onSubmit={handleSubmit(onSubmit)} style={styles.form}>
+
+                  {!isMedico() && (
+                    <>
+                      <div style={styles.inputGroup}>
+                        <select
+                          style={{ ...styles.input, borderColor: errors.pacienteId ? '#DC2626' : 'var(--border-color)' }}
+                          {...register('pacienteId')}
+                        >
+                          <option value="">Seleccione un paciente</option>
+                          {pacientes.map(p => (
+                            <option key={p.id} value={p.id}>{p.nombre} - {p.dni}</option>
+                          ))}
+                        </select>
+                        {errors.pacienteId && <span style={styles.errorText}>{errors.pacienteId.message}</span>}
+                      </div>
+
+                      <div style={styles.inputGroup}>
+                        <select
+                          style={{
+                            ...styles.input,
+                            borderColor: errors.medicoId ? '#DC2626' : 'var(--border-color)',
+                            backgroundColor: isMedico() ? '#f3f4f6' : 'white',
+                            cursor: isMedico() ? 'not-allowed' : 'pointer'
+                          }}
+                          {...register('medicoId')}
+                          disabled={isMedico()}
+                        >
+                          <option value="">Seleccione un médico</option>
+                          {medicos.map(m => (
+                            <option key={m.id} value={m.id}>{m.nombre} - {m.especialidad}</option>
+                          ))}
+                        </select>
+                        {errors.medicoId && <span style={styles.errorText}>{errors.medicoId.message}</span>}
+                      </div>
+
+                      <div style={styles.inputGroup}>
+                        <input
+                          style={{ ...styles.input, borderColor: errors.fecha ? '#DC2626' : 'var(--border-color)' }}
+                          type="date"
+                          {...register('fecha')}
+                        />
+                        {errors.fecha && <span style={styles.errorText}>{errors.fecha.message}</span>}
+                      </div>
+
+                      <div style={styles.inputGroup}>
+                        <input
+                          style={{ ...styles.input, borderColor: errors.hora ? '#DC2626' : 'var(--border-color)' }}
+                          type="time"
+                          {...register('hora')}
+                        />
+                        {errors.hora && <span style={styles.errorText}>{errors.hora.message}</span>}
+                      </div>
+
+                      <div style={styles.inputGroup}>
+                        <input
+                          style={styles.input}
+                          placeholder="Motivo de la consulta (opcional)"
+                          {...register('motivo')}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {isMedico() && citaEditandoData && (
+                    <div style={styles.citaInfo}>
+                      <div style={styles.infoRow}>
+                        <strong>Paciente:</strong> {citaEditandoData.pacienteNombre}
+                      </div>
+                      <div style={styles.infoRow}>
+                        <strong>Fecha:</strong> {citaEditandoData.fecha}
+                      </div>
+                      <div style={styles.infoRow}>
+                        <strong>Hora:</strong> {citaEditandoData.hora}
+                      </div>
+                      <div style={styles.infoRow}>
+                        <strong>Motivo:</strong> {citaEditandoData.motivo || 'No especificado'}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={styles.inputGroup}>
+                    <select
+                      style={styles.input}
+                      {...register('estado')}
+                    >
+                      <option value="programada">Programada</option>
+                      <option value="en_proceso">En Proceso</option>
+                      <option value="completada">Completada</option>
+                      <option value="cancelada">Cancelada</option>
+                    </select>
+                  </div>
+
+                  <div style={styles.modalActions}>
+                    <button type="button" style={styles.btnCancel} onClick={() => setShowModal(false)}>
+                      Cancelar
+                    </button>
+                    <button type="submit" style={styles.btnSubmit}>
+                      {isMedico() ? 'Actualizar Estado' : (editando ? 'Actualizar' : 'Crear')}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
-          </div>
-        )}
-      </main>
-    </div>
+          )}
+
+          <ConfirmModal
+            isOpen={showConfirm}
+            onClose={() => setShowConfirm(false)}
+            onConfirm={confirmarEliminacion}
+            title="Eliminar Cita"
+            message="¿Está seguro de que desea eliminar esta cita? Esta acción no se puede deshacer."
+          />
+        </main>
+      </ContentWrapper>
+    </>
   );
 };
 
 const styles = {
-  layout: { 
-    minHeight: '100vh', 
-    width: '100%',
-    background: '#F8FAFC',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  content: { 
+  content: {
     flex: 1,
     width: '100%',
     padding: 'clamp(1rem, 3vw, 2rem)',
     maxWidth: '100%',
+    minHeight: '100vh',
+    background: 'var(--bg-main)',
   },
-  header: { 
-    display: 'flex', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: '2rem',
     flexWrap: 'wrap',
     gap: '1rem',
   },
-  title: { 
-    fontSize: 'clamp(1.5rem, 5vw, 2rem)', 
-    color: '#0A4D68', 
+  title: {
+    fontSize: 'clamp(1.5rem, 5vw, 2rem)',
+    color: 'var(--primary-color)',
     fontWeight: '700',
     margin: 0,
   },
   btnPrimary: {
     padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(1rem, 3vw, 1.5rem)',
-    background: 'linear-gradient(135deg, #0A4D68, #088395)',
+    background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-color))',
     color: 'white',
     border: 'none',
     borderRadius: '0.5rem',
@@ -367,55 +535,54 @@ const styles = {
     cursor: 'pointer',
     whiteSpace: 'nowrap',
   },
-  loading: { 
-    textAlign: 'center', 
-    padding: '3rem 1rem', 
-    color: '#64748B', 
+  loading: {
+    textAlign: 'center',
+    padding: '3rem 1rem',
+    color: 'var(--text-secondary)',
     fontSize: 'clamp(1rem, 3vw, 1.125rem)',
   },
   tableWrapper: {
     width: '100%',
     overflowX: 'auto',
   },
-  tableContainer: { 
-    background: 'white', 
-    borderRadius: '1rem', 
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)', 
+  tableContainer: {
+    background: 'var(--bg-card)',
+    borderRadius: '1rem',
+    boxShadow: 'var(--shadow-md)',
     overflow: 'hidden',
     minWidth: '100%',
   },
-  table: { 
-    width: '100%', 
+  table: {
+    width: '100%',
     borderCollapse: 'collapse',
     minWidth: '700px',
   },
-  th: { 
-    padding: 'clamp(0.75rem, 2vw, 1rem)', 
-    textAlign: 'left', 
-    background: '#F1F5F9', 
-    fontWeight: '600', 
-    color: '#1E293B', 
+  th: {
+    padding: 'clamp(0.75rem, 2vw, 1rem)',
+    textAlign: 'left',
+    background: 'var(--bg-hover)',
+    fontWeight: '600',
+    color: 'var(--text-primary)',
     fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
     whiteSpace: 'nowrap',
   },
-  tr: { 
-    borderTop: '1px solid #E2E8F0',
-    transition: 'background 0.2s, transform 0.1s',
-    cursor: 'pointer',
+  tr: {
+    borderTop: '1px solid var(--border-color)',
+    transition: 'background 0.2s',
   },
-  td: { 
-    padding: 'clamp(0.75rem, 2vw, 1rem)', 
-    color: '#64748B',
+  td: {
+    padding: 'clamp(0.75rem, 2vw, 1rem)',
+    color: 'var(--text-secondary)',
     fontSize: 'clamp(0.8rem, 2vw, 0.95rem)',
   },
   tdActions: {
     padding: 'clamp(0.75rem, 2vw, 1rem)',
     whiteSpace: 'nowrap',
   },
-  empty: { 
-    textAlign: 'center', 
-    padding: '3rem 1rem', 
-    color: '#94A3B8',
+  empty: {
+    textAlign: 'center',
+    padding: '3rem 1rem',
+    color: 'var(--text-secondary)',
     fontSize: 'clamp(0.875rem, 2vw, 1rem)',
   },
   badge: {
@@ -430,7 +597,7 @@ const styles = {
   },
   btnEdit: {
     padding: 'clamp(0.4rem, 1.5vw, 0.5rem) clamp(0.75rem, 2vw, 1rem)',
-    background: '#3B82F6',
+    background: 'var(--primary-color)',
     color: 'white',
     border: 'none',
     borderRadius: '0.375rem',
@@ -441,7 +608,7 @@ const styles = {
   },
   btnDelete: {
     padding: 'clamp(0.4rem, 1.5vw, 0.5rem) clamp(0.75rem, 2vw, 1rem)',
-    background: '#EF4444',
+    background: 'var(--error-color)',
     color: 'white',
     border: 'none',
     borderRadius: '0.375rem',
@@ -463,7 +630,7 @@ const styles = {
     padding: '1rem',
   },
   modal: {
-    background: 'white',
+    background: 'var(--bg-card)',
     padding: 'clamp(1.5rem, 4vw, 2rem)',
     borderRadius: '1rem',
     width: '100%',
@@ -471,9 +638,9 @@ const styles = {
     maxHeight: '90vh',
     overflowY: 'auto',
   },
-  modalTitle: { 
-    marginBottom: '1.5rem', 
-    color: '#0A4D68', 
+  modalTitle: {
+    marginBottom: '1.5rem',
+    color: 'var(--primary-dark)',
     fontSize: 'clamp(1.25rem, 4vw, 1.5rem)',
     margin: '0 0 1.5rem 0',
   },
@@ -481,28 +648,39 @@ const styles = {
     width: '100%',
   },
   citaInfo: {
-    background: '#F8FAFC',
+    background: 'var(--bg-hover)',
     padding: '1rem',
     borderRadius: '0.5rem',
     marginBottom: '1rem',
   },
   infoRow: {
     marginBottom: '0.5rem',
-    color: '#64748B',
+    color: 'var(--text-secondary)',
     fontSize: 'clamp(0.875rem, 2vw, 1rem)',
   },
   input: {
     width: '100%',
     padding: 'clamp(0.625rem, 2vw, 0.75rem)',
-    marginBottom: '1rem',
-    border: '2px solid #E2E8F0',
+    border: '2px solid var(--border-color)',
     borderRadius: '0.5rem',
     fontSize: 'clamp(0.875rem, 2vw, 1rem)',
     boxSizing: 'border-box',
+    background: 'var(--input-bg)',
+    color: 'var(--text-primary)',
   },
-  modalActions: { 
-    display: 'flex', 
-    gap: '1rem', 
+  inputGroup: {
+    marginBottom: '1rem',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  errorText: {
+    color: 'var(--error-color)',
+    fontSize: '0.85rem',
+    marginTop: '0.25rem',
+  },
+  modalActions: {
+    display: 'flex',
+    gap: '1rem',
     marginTop: '1.5rem',
     flexWrap: 'wrap',
   },
@@ -510,8 +688,8 @@ const styles = {
     flex: 1,
     minWidth: '120px',
     padding: 'clamp(0.625rem, 2vw, 0.75rem)',
-    background: '#E2E8F0',
-    color: '#64748B',
+    background: 'var(--bg-hover)',
+    color: 'var(--text-secondary)',
     border: 'none',
     borderRadius: '0.5rem',
     cursor: 'pointer',
@@ -522,7 +700,7 @@ const styles = {
     flex: 1,
     minWidth: '120px',
     padding: 'clamp(0.625rem, 2vw, 0.75rem)',
-    background: 'linear-gradient(135deg, #0A4D68, #088395)',
+    background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-color))',
     color: 'white',
     border: 'none',
     borderRadius: '0.5rem',

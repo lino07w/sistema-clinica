@@ -1,117 +1,114 @@
-/**
- * Servidor Principal
- * Sistema de Gestión de Clínica - Backend API
- */
-
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import morgan from 'morgan';
-import rateLimit from 'express-rate-limit';
 import config from './config/config.js';
-import { notFound, errorHandler } from './middleware/errorHandler.js';
-
-// Importar rutas
+import db from './models/index.js'; // 🆕 Importar base de datos
 import authRoutes from './routes/authRoutes.js';
+import userRoutes from './routes/userRoutes.js'; // 👈 NUEVO
+import facturaRoutes from './routes/facturaRoutes.js';
+import configRoutes from './routes/configRoutes.js';
+import historialRoutes from './routes/historialRoutes.js';
 import { pacienteRouter, medicoRouter, citaRouter } from './routes/entityRoutes.js';
+import auditRoutes from './routes/auditRoutes.js';
+import { errorHandler } from './middleware/errorHandler.js';
+import rateLimit from 'express-rate-limit';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpecs from './config/swagger.js';
 
-// Crear aplicación Express
 const app = express();
 
-/* ===================== MIDDLEWARE ===================== */
+// Middleware de seguridad
+app.use(helmet());
 
-// CORS - Configuración permisiva para desarrollo
+// CORS - CONFIGURACIÓN CORREGIDA
 app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  origin: [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5174',
+    'http://localhost:5175',
+    'http://127.0.0.1:5175',
+    'http://localhost:5500',
+    'http://127.0.0.1:5500',
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Seguridad con headers - DESACTIVADO TEMPORALMENTE para debug CORS
-// app.use(helmet({
-//   crossOriginResourcePolicy: false
-// }));
+// Rate limiting - ACTIVADO PARA SEGURIDAD
+const limiter = rateLimit({
+  windowMs: config.rateLimit?.windowMs || 15 * 60 * 1000,
+  max: config.rateLimit?.maxRequests || 100,
+  message: 'Demasiadas peticiones desde esta IP, por favor intenta más tarde'
+});
+app.use('/api/', limiter);
 
-// Parseo de JSON y formularios
+// Middleware para parsear JSON
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Logs de peticiones (solo en desarrollo)
-if (config.env === 'development') {
-  app.use(morgan('dev'));
-}
-
-// Rate limiting - DESACTIVADO TEMPORALMENTE PARA DESARROLLO
-// const limiter = rateLimit({
-//   windowMs: config.rateLimit.windowMs,
-//   max: config.rateLimit.maxRequests,
-//   message: 'Demasiadas peticiones desde esta IP, por favor intenta más tarde'
-// });
-
-// app.use('/api/', limiter);
-
-// app.use('/api/', limiter);
+// Documentación de la API
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 
-
-/* ===================== RUTAS ===================== */
-
-// Ruta principal
-app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    message: 'API de Sistema de Gestión de Clínica',
-    version: '1.0.0',
-    endpoints: {
-      auth: '/api/auth',
-      pacientes: '/api/pacientes',
-      medicos: '/api/medicos',
-      citas: '/api/citas'
-    }
-  });
-});
-
-// Health check
-app.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'API funcionando correctamente',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Rutas principales de la API
+// Rutas
 app.use('/api/auth', authRoutes);
+app.use('/api/usuarios', userRoutes);
 app.use('/api/pacientes', pacienteRouter);
 app.use('/api/medicos', medicoRouter);
 app.use('/api/citas', citaRouter);
+app.use('/api/facturas', facturaRoutes); // 👈 NUEVO
+app.use('/api/configuracion', configRoutes); // 👈 NUEVO
+app.use('/api/historial', historialRoutes); // 👈 NUEVO
+app.use('/api/auditoria', auditRoutes); // 👈 NUEVO
 
-/* ===================== MANEJO DE ERRORES ===================== */
+// Ruta de prueba
+app.get('/', (req, res) => {
+  res.json({
+    message: 'API Sistema de Clínica',
+    version: '1.0.0',
+    status: 'OK'
+  });
+});
 
-// Ruta no encontrada
-app.use(notFound);
-
-// Manejador de errores global
+// Middleware de manejo de errores (debe ir al final)
 app.use(errorHandler);
 
-/* ===================== SERVIDOR ===================== */
+// Iniciar servidor con base de datos
+const PORT = config.port || 3000;
 
-const PORT = config.port;
+const { sequelize } = db;
 
-app.listen(PORT, () => {
-  console.log(`
+// Exportar para pruebas
+export { app, sequelize };
+
+// Solo iniciar si no estamos en modo de prueba
+if (process.env.NODE_ENV !== 'test') {
+  sequelize.authenticate()
+    .then(() => {
+      console.log('✅ Conexión a PostgreSQL establecida correctamente');
+
+      app.listen(PORT, () => {
+        console.log(`
 ╔══════════════════════════════════════════════════╗
 ║     Sistema de Gestión de Clínica - Backend     ║
 ╚══════════════════════════════════════════════════╝
 
 ✅ Servidor corriendo en puerto ${PORT}
 🌍 Entorno: ${config.env}
+🗄️  Base de datos: PostgreSQL
 🔗 URL: http://localhost:${PORT}
 📚 API: http://localhost:${PORT}/api
 
 Endpoints disponibles:
+  - POST   /api/auth/register
   - POST   /api/auth/login
   - GET    /api/auth/me
+  - GET    /api/usuarios
+  - POST   /api/usuarios
   - GET    /api/pacientes
   - POST   /api/pacientes
   - GET    /api/medicos
@@ -120,14 +117,13 @@ Endpoints disponibles:
   - POST   /api/citas
 
 Presiona CTRL+C para detener el servidor
-  `);
-});
-
-/* ===================== ERRORES NO CAPTURADOS ===================== */
-
-process.on('unhandledRejection', (err) => {
-  console.error('❌ Error no manejado:', err);
-  process.exit(1);
-});
+        `);
+      });
+    })
+    .catch(err => {
+      console.error('❌ Error conectando a PostgreSQL:', err.message);
+      process.exit(1);
+    });
+}
 
 export default app;

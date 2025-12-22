@@ -1,266 +1,377 @@
 import { useState, useEffect } from 'react';
 import { pacientesAPI } from '../services/api';
+import { useToast } from '../context/ToastContext';
 import Navbar from '../components/Navbar';
-import Can from '../components/Can';
+import ContentWrapper from '../components/ContentWrapper';
+import SearchBar from '../components/SearchBar';
+import Pagination from '../components/Pagination';
+import TableHeader from '../components/TableHeader';
+import { useTableData } from '../hooks/useTableData';
+import ExportButtons from '../components/ExportButtons';
+import Spinner from '../components/Spinner';
+import ConfirmModal from '../components/ConfirmModal';
+
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { pacienteSchema } from '../schemas/pacienteSchema';
+
+// ... imports anteriores se mantienen arriba
 
 const Pacientes = () => {
+  const { addToast } = useToast();
   const [pacientes, setPacientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState(null);
-  const [formData, setFormData] = useState({
-    nombre: '',
-    dni: '',
-    fechaNacimiento: '',
-    telefono: '',
-    email: '',
-    direccion: ''
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [pacienteAEliminar, setPacienteAEliminar] = useState(null);
+
+  const { register, handleSubmit, reset, formState: { errors } } = useForm({
+    resolver: zodResolver(pacienteSchema)
   });
 
-  const handleRowHover = (e) => {
-    e.currentTarget.style.background = '#F8FAFC';
-  };
-
-  const handleRowLeave = (e) => {
-    e.currentTarget.style.background = 'transparent';
-  };
+  const {
+    searchTerm,
+    setSearchTerm,
+    currentPage,
+    setCurrentPage,
+    itemsPerPage,
+    setItemsPerPage,
+    sortConfig,
+    handleSort,
+    paginatedData,
+    totalPages,
+    totalItems,
+  } = useTableData(pacientes, 10);
 
   useEffect(() => {
     cargarPacientes();
   }, []);
 
- const cargarPacientes = async () => {
-  try {
-    const response = await pacientesAPI.getAll();
-    // Extraer el array correcto
-    const data = response.data?.data || response.data || [];
-    setPacientes(data);
-  } catch (error) {
-    console.error('Error cargando pacientes:', error);
-    alert('Error al cargar pacientes');
-  } finally {
-    setLoading(false);
-  }
-};
+  const cargarPacientes = async () => {
+    try {
+      const response = await pacientesAPI.getAll();
+      const data = response.data?.data || response.data || [];
+      setPacientes(data);
+    } catch (error) {
+      console.error('Error cargando pacientes:', error);
+      addToast('Error al cargar pacientes', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const onSubmit = async (data) => {
     try {
       if (editando) {
-        await pacientesAPI.update(editando, formData);
-        alert('Paciente actualizado correctamente');
+        await pacientesAPI.update(editando, data);
+        addToast('Paciente actualizado correctamente', 'success');
       } else {
-        await pacientesAPI.create(formData);
-        alert('Paciente creado correctamente');
+        await pacientesAPI.create(data);
+        addToast('Paciente creado correctamente', 'success');
       }
       setShowModal(false);
-      resetForm();
+      reset();
+      setEditando(null);
       cargarPacientes();
     } catch (error) {
-      alert(error.response?.data?.message || 'Error al guardar paciente');
+      addToast(error.response?.data?.message || 'Error al guardar paciente', 'error');
     }
   };
 
   const handleEdit = (paciente) => {
     setEditando(paciente.id);
-    setFormData({
+    reset({
       nombre: paciente.nombre,
       dni: paciente.dni,
-      fechaNacimiento: paciente.fechaNacimiento,
-      telefono: paciente.telefono,
-      email: paciente.email,
-      direccion: paciente.direccion || ''
+      fechaNacimiento: paciente.fechaNacimiento || '',
+      genero: paciente.genero || 'No especificado',
+      telefono: paciente.telefono || '',
+      direccion: paciente.direccion || '',
+      email: paciente.email || ''
     });
     setShowModal(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Está seguro de eliminar este paciente?')) return;
-    try {
-      await pacientesAPI.delete(id);
-      alert('Paciente eliminado correctamente');
-      cargarPacientes();
-    } catch (error) {
-      alert(error.response?.data?.message || 'Error al eliminar paciente');
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
+  const handleNuevo = () => {
+    setEditando(null);
+    reset({
       nombre: '',
       dni: '',
       fechaNacimiento: '',
+      genero: 'No especificado',
       telefono: '',
-      email: '',
-      direccion: ''
+      direccion: '',
+      email: ''
     });
-    setEditando(null);
+    setShowModal(true);
+  };
+
+  const handleDelete = (id) => {
+    setPacienteAEliminar(id);
+    setShowConfirm(true);
+  };
+
+  const confirmarEliminacion = async () => {
+    try {
+      await pacientesAPI.delete(pacienteAEliminar);
+      addToast('Paciente eliminado correctamente', 'success');
+      cargarPacientes();
+    } catch (error) {
+      addToast(error.response?.data?.message || 'Error al eliminar paciente', 'error');
+    } finally {
+      setShowConfirm(false);
+      setPacienteAEliminar(null);
+    }
   };
 
   return (
-    <div style={styles.layout}>
+    <>
       <Navbar />
-      <main style={styles.content}>
-        <div style={styles.header}>
-          <h1 style={styles.title}>Gestión de Pacientes</h1>
-          
-          {/* Solo Admin y Recepcionista pueden crear pacientes */}
-          <Can roles={['administrador', 'recepcionista']}>
-            <button style={styles.btnPrimary} onClick={() => { resetForm(); setShowModal(true); }}>
+      <ContentWrapper>
+        <main style={styles.content}>
+          <div style={styles.header}>
+            <h1 style={styles.title}>Gestión de Pacientes</h1>
+            <button style={styles.btnPrimary} onClick={handleNuevo}>
               + Nuevo Paciente
             </button>
-          </Can>
-        </div>
+          </div>
 
-        {loading ? (
-          <div style={styles.loading}>Cargando pacientes...</div>
-        ) : (
-          <div style={styles.tableWrapper}>
-            <div style={styles.tableContainer}>
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    <th style={styles.th}>Nombre</th>
-                    <th style={styles.th}>DNI</th>
-                    <th style={styles.th}>F. Nacimiento</th>
-                    <th style={styles.th}>Teléfono</th>
-                    <th style={styles.th}>Email</th>
-                    <th style={styles.th}>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pacientes.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" style={styles.empty}>No hay pacientes registrados</td>
-                    </tr>
-                  ) : (
-                    pacientes.map(p => (
-                      <tr 
-                        key={p.id} 
-                        style={styles.tr}
-                        onMouseEnter={handleRowHover}
-                        onMouseLeave={handleRowLeave}
-                      >
-                        <td style={styles.td}>{p.nombre}</td>
-                        <td style={styles.td}>{p.dni}</td>
-                        <td style={styles.td}>{p.fechaNacimiento}</td>
-                        <td style={styles.td}>{p.telefono}</td>
-                        <td style={styles.td}>{p.email}</td>
-                        <td style={styles.tdActions}>
-                          {/* Solo Admin y Recepcionista pueden editar */}
-                          <Can roles={['administrador', 'recepcionista']}>
-                            <button style={styles.btnEdit} onClick={() => handleEdit(p)}>Editar</button>
-                          </Can>
-                          
-                          {/* Solo Admin puede eliminar */}
-                          <Can roles={['administrador']}>
-                            <button style={styles.btnDelete} onClick={() => handleDelete(p.id)}>Eliminar</button>
-                          </Can>
-                        </td>
+          {loading ? (
+            <Spinner />
+          ) : (
+            <>
+              <div style={styles.filterSection}>
+                <SearchBar value={searchTerm} onChange={setSearchTerm} placeholder="Buscar por nombre o DNI..." />
+                <ExportButtons
+                  data={pacientes}
+                  fileName="pacientes"
+                  title="Reporte de Pacientes"
+                  columns={[
+                    { header: 'Nombre', dataKey: 'nombre' },
+                    { header: 'DNI', dataKey: 'dni' },
+                    { header: 'Email', dataKey: 'email' },
+                    { header: 'Teléfono', dataKey: 'telefono' },
+                    { header: 'Género', dataKey: 'genero' },
+                    { header: 'Dirección', dataKey: 'direccion' },
+                  ]}
+                />
+              </div>
+
+              <div style={styles.tableWrapper}>
+                <div style={styles.tableContainer}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <TableHeader
+                          column="nombre"
+                          label="Nombre"
+                          sortConfig={sortConfig}
+                          onSort={handleSort}
+                        />
+                        <TableHeader
+                          column="dni"
+                          label="DNI"
+                          sortConfig={sortConfig}
+                          onSort={handleSort}
+                        />
+                        <TableHeader
+                          column="email"
+                          label="Email"
+                          sortConfig={sortConfig}
+                          onSort={handleSort}
+                        />
+                        <TableHeader
+                          column="telefono"
+                          label="Teléfono"
+                          sortConfig={sortConfig}
+                          onSort={handleSort}
+                        />
+                        <th style={styles.th}>Acciones</th>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {showModal && (
-          <div style={styles.modalOverlay} onClick={() => setShowModal(false)}>
-            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-              <h2 style={styles.modalTitle}>{editando ? 'Editar' : 'Nuevo'} Paciente</h2>
-              <form onSubmit={handleSubmit} style={styles.form}>
-                <input
-                  style={styles.input}
-                  placeholder="Nombre completo"
-                  value={formData.nombre}
-                  onChange={(e) => setFormData({...formData, nombre: e.target.value})}
-                  required
-                />
-                <input
-                  style={styles.input}
-                  placeholder="DNI"
-                  value={formData.dni}
-                  onChange={(e) => setFormData({...formData, dni: e.target.value})}
-                  required
-                />
-                <input
-                  style={styles.input}
-                  type="date"
-                  value={formData.fechaNacimiento}
-                  onChange={(e) => setFormData({...formData, fechaNacimiento: e.target.value})}
-                  required
-                />
-                <input
-                  style={styles.input}
-                  placeholder="Teléfono"
-                  value={formData.telefono}
-                  onChange={(e) => setFormData({...formData, telefono: e.target.value})}
-                  required
-                />
-                <input
-                  style={styles.input}
-                  type="email"
-                  placeholder="Email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  required
-                />
-                <input
-                  style={styles.input}
-                  placeholder="Dirección (opcional)"
-                  value={formData.direccion}
-                  onChange={(e) => setFormData({...formData, direccion: e.target.value})}
-                />
-                <div style={styles.modalActions}>
-                  <button type="button" style={styles.btnCancel} onClick={() => setShowModal(false)}>
-                    Cancelar
-                  </button>
-                  <button type="submit" style={styles.btnSubmit}>
-                    {editando ? 'Actualizar' : 'Crear'}
-                  </button>
+                    </thead>
+                    <tbody>
+                      {paginatedData.length > 0 ? (
+                        paginatedData.map((paciente) => (
+                          <tr key={paciente.id} style={styles.tr}>
+                            <td style={styles.td}>{paciente.nombre}</td>
+                            <td style={styles.td}>{paciente.dni}</td>
+                            <td style={styles.td}>{paciente.email}</td>
+                            <td style={styles.td}>{paciente.telefono || '-'}</td>
+                            <td style={styles.tdActions}>
+                              <button style={styles.btnEdit} onClick={() => handleEdit(paciente)}>
+                                Editar
+                              </button>
+                              <button style={styles.btnDelete} onClick={() => handleDelete(paciente.id)}>
+                                Eliminar
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5" style={styles.empty}>No se encontraron pacientes</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                    totalItems={totalItems}
+                    itemsPerPage={itemsPerPage}
+                    onItemsPerPageChange={setItemsPerPage}
+                  />
                 </div>
-              </form>
+              </div>
+            </>
+          )}
+
+          <ConfirmModal
+            isOpen={showConfirm}
+            onClose={() => setShowConfirm(false)}
+            onConfirm={confirmarEliminacion}
+            title="Eliminar Paciente"
+            message="¿Está seguro de que desea eliminar este paciente? Esta acción no se puede deshacer."
+          />
+
+          {/* Modal */}
+          {showModal && (
+            <div style={styles.modalOverlay} onClick={() => setShowModal(false)}>
+              <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+                <h2 style={styles.modalTitle}>
+                  {editando ? 'Editar Paciente' : 'Nuevo Paciente'}
+                </h2>
+                <form onSubmit={handleSubmit(onSubmit)} style={styles.form}>
+                  <div style={styles.inputGroup}>
+                    <input
+                      style={{ ...styles.input, borderColor: errors.nombre ? '#DC2626' : 'var(--border-color)' }}
+                      type="text"
+                      placeholder="Nombre completo *"
+                      {...register('nombre')}
+                    />
+                    {errors.nombre && <span style={styles.errorText}>{errors.nombre.message}</span>}
+                  </div>
+
+                  <div style={styles.inputGroup}>
+                    <input
+                      style={{ ...styles.input, borderColor: errors.dni ? '#DC2626' : 'var(--border-color)' }}
+                      type="text"
+                      placeholder="DNI *"
+                      {...register('dni')}
+                    />
+                    {errors.dni && <span style={styles.errorText}>{errors.dni.message}</span>}
+                  </div>
+
+                  <div style={styles.inputGroup}>
+                    <input
+                      style={styles.input}
+                      type="date"
+                      placeholder="Fecha de Nacimiento"
+                      {...register('fechaNacimiento')}
+                    />
+                  </div>
+
+                  <div style={styles.inputGroup}>
+                    <input
+                      style={styles.input}
+                      type="tel"
+                      placeholder="Teléfono"
+                      {...register('telefono')}
+                    />
+                  </div>
+
+                  <div style={styles.inputGroup}>
+                    <input
+                      style={{ ...styles.input, borderColor: errors.email ? '#DC2626' : 'var(--border-color)' }}
+                      type="email"
+                      placeholder="Email"
+                      {...register('email')}
+                    />
+                    {errors.email && <span style={styles.errorText}>{errors.email.message}</span>}
+                  </div>
+
+                  <div style={styles.inputGroup}>
+                    <label style={{ marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Género *</label>
+                    <select
+                      style={{ ...styles.input, padding: '0.6rem' }}
+                      {...register('genero')}
+                    >
+                      <option value="Masculino">Masculino</option>
+                      <option value="Femenino">Femenino</option>
+                      <option value="Otro">Otro</option>
+                      <option value="No especificado">No especificado</option>
+                    </select>
+                    {errors.genero && <span style={styles.errorText}>{errors.genero.message}</span>}
+
+                  </div>
+
+                  <div style={styles.inputGroup}>
+                    <input
+                      style={styles.input}
+                      type="text"
+                      placeholder="Dirección"
+                      {...register('direccion')}
+                    />
+                  </div>
+
+                  <div style={styles.modalActions}>
+                    <button
+                      type="button"
+                      style={styles.btnCancel}
+                      onClick={() => setShowModal(false)}
+                    >
+                      Cancelar
+                    </button>
+                    <button type="submit" style={styles.btnSubmit}>
+                      {editando ? 'Actualizar' : 'Crear'}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
-          </div>
-        )}
-      </main>
-    </div>
+          )}
+        </main>
+      </ContentWrapper>
+    </>
   );
 };
 
 const styles = {
-  layout: { 
-    minHeight: '100vh', 
-    width: '100%',
-    background: '#F8FAFC',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  content: { 
+  content: {
     flex: 1,
     width: '100%',
     padding: 'clamp(1rem, 3vw, 2rem)',
     maxWidth: '100%',
+    minHeight: '100vh',
+    background: 'var(--bg-main)',
   },
-  header: { 
-    display: 'flex', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: '2rem',
     flexWrap: 'wrap',
     gap: '1rem',
   },
-  title: { 
-    fontSize: 'clamp(1.5rem, 5vw, 2rem)', 
-    color: '#0A4D68', 
+  filterSection: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '1.5rem',
+    flexWrap: 'wrap',
+    gap: '1rem',
+  },
+  title: {
+    fontSize: 'clamp(1.5rem, 5vw, 2rem)',
+    color: 'var(--primary-color)',
     fontWeight: '700',
     margin: 0,
   },
   btnPrimary: {
     padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(1rem, 3vw, 1.5rem)',
-    background: 'linear-gradient(135deg, #0A4D68, #088395)',
+    background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-color))',
     color: 'white',
     border: 'none',
     borderRadius: '0.5rem',
@@ -269,60 +380,59 @@ const styles = {
     cursor: 'pointer',
     whiteSpace: 'nowrap',
   },
-  loading: { 
-    textAlign: 'center', 
-    padding: '3rem 1rem', 
-    color: '#64748B', 
+  loading: {
+    textAlign: 'center',
+    padding: '3rem 1rem',
+    color: 'var(--text-secondary)',
     fontSize: 'clamp(1rem, 3vw, 1.125rem)',
   },
   tableWrapper: {
     width: '100%',
     overflowX: 'auto',
   },
-  tableContainer: { 
-    background: 'white', 
-    borderRadius: '1rem', 
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)', 
+  tableContainer: {
+    background: 'var(--bg-card)',
+    borderRadius: '1rem',
+    boxShadow: 'var(--shadow-md)',
     overflow: 'hidden',
     minWidth: '100%',
   },
-  table: { 
-    width: '100%', 
+  table: {
+    width: '100%',
     borderCollapse: 'collapse',
-    minWidth: '600px',
+    minWidth: '700px',
   },
-  th: { 
-    padding: 'clamp(0.75rem, 2vw, 1rem)', 
-    textAlign: 'left', 
-    background: '#F1F5F9', 
-    fontWeight: '600', 
-    color: '#1E293B', 
+  th: {
+    padding: 'clamp(0.75rem, 2vw, 1rem)',
+    textAlign: 'left',
+    background: 'var(--bg-hover)',
+    fontWeight: '600',
+    color: 'var(--text-primary)',
     fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
     whiteSpace: 'nowrap',
   },
-  tr: { 
-    borderTop: '1px solid #E2E8F0',
-    transition: 'background 0.2s, transform 0.1s',
-    cursor: 'pointer',
+  tr: {
+    borderTop: '1px solid var(--border-color)',
+    transition: 'background 0.2s',
   },
-  td: { 
-    padding: 'clamp(0.75rem, 2vw, 1rem)', 
-    color: '#64748B',
+  td: {
+    padding: 'clamp(0.75rem, 2vw, 1rem)',
+    color: 'var(--text-secondary)',
     fontSize: 'clamp(0.8rem, 2vw, 0.95rem)',
   },
   tdActions: {
     padding: 'clamp(0.75rem, 2vw, 1rem)',
     whiteSpace: 'nowrap',
   },
-  empty: { 
-    textAlign: 'center', 
-    padding: '3rem 1rem', 
-    color: '#94A3B8',
+  empty: {
+    textAlign: 'center',
+    padding: '3rem 1rem',
+    color: 'var(--text-secondary)',
     fontSize: 'clamp(0.875rem, 2vw, 1rem)',
   },
   btnEdit: {
-    padding: 'clamp(0.4rem, 1.5vw, 0.5rem) clamp(0.75rem, 2vw, 1rem)',
-    background: '#3B82F6',
+    padding: '0.4rem 1rem',
+    background: 'var(--primary-color)',
     color: 'white',
     border: 'none',
     borderRadius: '0.375rem',
@@ -332,8 +442,8 @@ const styles = {
     whiteSpace: 'nowrap',
   },
   btnDelete: {
-    padding: 'clamp(0.4rem, 1.5vw, 0.5rem) clamp(0.75rem, 2vw, 1rem)',
-    background: '#EF4444',
+    padding: '0.4rem 1rem',
+    background: 'var(--error-color)',
     color: 'white',
     border: 'none',
     borderRadius: '0.375rem',
@@ -355,7 +465,7 @@ const styles = {
     padding: '1rem',
   },
   modal: {
-    background: 'white',
+    background: 'var(--bg-card)',
     padding: 'clamp(1.5rem, 4vw, 2rem)',
     borderRadius: '1rem',
     width: '100%',
@@ -363,9 +473,9 @@ const styles = {
     maxHeight: '90vh',
     overflowY: 'auto',
   },
-  modalTitle: { 
-    marginBottom: '1.5rem', 
-    color: '#0A4D68', 
+  modalTitle: {
+    marginBottom: '1.5rem',
+    color: 'var(--primary-dark)',
     fontSize: 'clamp(1.25rem, 4vw, 1.5rem)',
     margin: '0 0 1.5rem 0',
   },
@@ -375,15 +485,26 @@ const styles = {
   input: {
     width: '100%',
     padding: 'clamp(0.625rem, 2vw, 0.75rem)',
-    marginBottom: '1rem',
-    border: '2px solid #E2E8F0',
+    border: '2px solid var(--border-color)',
     borderRadius: '0.5rem',
     fontSize: 'clamp(0.875rem, 2vw, 1rem)',
     boxSizing: 'border-box',
+    background: 'var(--input-bg)',
+    color: 'var(--text-primary)',
   },
-  modalActions: { 
-    display: 'flex', 
-    gap: '1rem', 
+  inputGroup: {
+    marginBottom: '1rem',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  errorText: {
+    color: 'var(--error-color)',
+    fontSize: '0.85rem',
+    marginTop: '0.25rem',
+  },
+  modalActions: {
+    display: 'flex',
+    gap: '1rem',
     marginTop: '1.5rem',
     flexWrap: 'wrap',
   },
@@ -391,8 +512,8 @@ const styles = {
     flex: 1,
     minWidth: '120px',
     padding: 'clamp(0.625rem, 2vw, 0.75rem)',
-    background: '#E2E8F0',
-    color: '#64748B',
+    background: 'var(--bg-hover)',
+    color: 'var(--text-secondary)',
     border: 'none',
     borderRadius: '0.5rem',
     cursor: 'pointer',

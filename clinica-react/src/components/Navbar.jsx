@@ -1,173 +1,254 @@
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Can from './Can';
+import ThemeToggle from './ThemeToggle';
+import '../styles/Navbar.css';
 
 const Navbar = () => {
-  const { user, logout, isAdmin, isRecepcionista, isMedico } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout, isAdmin, isMedico, isRecepcionista } = useAuth();
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = () => {
-    if (window.confirm('¿Está seguro que desea cerrar sesión?')) {
-      logout();
-      navigate('/login');
-    }
+    logout();
+    navigate('/login');
+  };
+
+  const handleNavigate = (path) => {
+    navigate(path);
+    setMobileOpen(false);
   };
 
   const isActive = (path) => location.pathname === path;
 
-  return (
-    <nav style={styles.navbar}>
-      <div style={styles.content}>
-        <Link to="/" style={styles.brand}>
-          <span style={styles.brandIcon}>⚕️</span>
-          <span style={styles.brandText}>Sistema Clínica</span>
-        </Link>
-        
-        <div style={styles.menu}>
-          <Link to="/" style={{...styles.link, ...(isActive('/') && styles.linkActive)}}>
-            Dashboard
-          </Link>
-
-          {/* Admin y Recepcionista ven Pacientes */}
-          {(isAdmin() || isRecepcionista()) && (
-            <Link to="/pacientes" style={{...styles.link, ...(isActive('/pacientes') && styles.linkActive)}}>
-              Pacientes
-            </Link>
-          )}
-
-          {/* Solo Admin ve Médicos */}
-          {isAdmin() && (
-            <Link to="/medicos" style={{...styles.link, ...(isActive('/medicos') && styles.linkActive)}}>
-              Médicos
-            </Link>
-          )}
-
-          {/* Admin, Recepcionista y Médico ven Citas */}
-          {(isAdmin() || isRecepcionista() || isMedico()) && (
-            <Link to="/citas" style={{...styles.link, ...(isActive('/citas') && styles.linkActive)}}>
-              Citas
-            </Link>
-          )}
-
-          {/* Paciente ve Mis Citas */}
-          {/* {isPaciente() && (
-            <Link to="/mis-citas" style={{...styles.link, ...(isActive('/mis-citas') && styles.linkActive)}}>
-              Mis Citas
-            </Link>
-          )} */}
-        </div>
-
-        <div style={styles.userSection}>
-          <div style={styles.userInfo}>
-            <span style={styles.username}>👤 {user?.nombre || user?.username}</span>
-            <span style={styles.role}>{getRoleLabel(user?.rol)}</span>
-          </div>
-          <button onClick={handleLogout} style={styles.logoutBtn}>
-            Salir
-          </button>
-        </div>
-      </div>
-    </nav>
-  );
-};
-
-const getRoleLabel = (rol) => {
-  const labels = {
-    administrador: '🔑 Admin',
-    medico: '👨‍⚕️ Médico',
-    recepcionista: '📋 Recepción',
-    paciente: '🧑 Paciente'
+  const getRoleInfo = () => {
+    if (isAdmin()) return { icon: '🔑', label: 'Admin', color: '#DC2626' };
+    if (isMedico()) return { icon: '👨‍⚕️', label: 'Médico', color: '#10B981' };
+    if (isRecepcionista()) return { icon: '📋', label: 'Recepcionista', color: '#3B82F6' };
+    return { icon: '🧑', label: 'Usuario', color: '#64748B' };
   };
-  return labels[rol] || rol;
-};
 
-const styles = {
-  navbar: {
-    background: 'white',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-    position: 'sticky',
-    top: 0,
-    zIndex: 100,
-    width: '100%',
-  },
-  content: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '1rem 2rem',
-    width: '100%',
-    maxWidth: '100%',
-    margin: '0 auto',
-    flexWrap: 'wrap',
-    gap: '1rem',
-  },
-  brand: {
-    fontSize: '1.5rem',
-    fontWeight: '700',
-    color: '#0A4D68',
-    textDecoration: 'none',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-  },
-  brandIcon: {
-    fontSize: '1.75rem',
-  },
-  brandText: {
-    display: 'inline',
-  },
-  menu: {
-    display: 'flex',
-    gap: '0.25rem',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  link: {
-    textDecoration: 'none',
-    color: '#64748B',
-    fontWeight: '500',
-    padding: '0.5rem 1rem',
-    borderRadius: '0.5rem',
-    transition: 'all 0.2s',
-    fontSize: '0.95rem',
-    whiteSpace: 'nowrap',
-  },
-  linkActive: {
-    background: 'rgba(10, 77, 104, 0.1)',
-    color: '#0A4D68',
-  },
-  userSection: {
-    display: 'flex',
-    gap: '1rem',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  userInfo: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-  },
-  username: {
-    color: '#1E293B',
-    fontWeight: '600',
-    fontSize: '0.95rem',
-  },
-  role: {
-    color: '#64748B',
-    fontSize: '0.75rem',
-    fontWeight: '500',
-  },
-  logoutBtn: {
-    padding: '0.5rem 1rem',
-    background: '#EF4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontWeight: '500',
-    fontSize: '0.95rem',
-    whiteSpace: 'nowrap',
-  },
+  const roleInfo = getRoleInfo();
+
+  return (
+    <>
+      {/* Overlay para móvil */}
+      <div
+        className={`sidebar-overlay ${mobileOpen ? 'active' : ''}`}
+        onClick={() => setMobileOpen(false)}
+      />
+
+      {/* Botón hamburguesa (solo móvil) */}
+      <button
+        className="sidebar-mobile-toggle"
+        onClick={() => setMobileOpen(!mobileOpen)}
+      >
+        ☰
+      </button>
+
+      {/* Sidebar */}
+      <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
+        {/* Header */}
+        <div className="sidebar-header">
+          <div className="sidebar-logo" onClick={() => handleNavigate('/dashboard')}>
+            <span className="sidebar-logo-icon">🏥</span>
+            <span className="sidebar-logo-text">Sistema Clínica</span>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <ThemeToggle />
+            <button
+              className="sidebar-collapse-btn"
+              onClick={() => setCollapsed(!collapsed)}
+            >
+              {collapsed ? '→' : '←'}
+            </button>
+          </div>
+        </div>
+
+        {/* User info */}
+        <div className="sidebar-user-info">
+          <div
+            className="sidebar-user-avatar"
+            style={{ background: roleInfo.color }}
+          >
+            {roleInfo.icon}
+          </div>
+          <div className="sidebar-user-details">
+            <span className="sidebar-user-name">
+              {user?.nombre || user?.username}
+            </span>
+            <span
+              className="sidebar-user-role"
+              style={{ color: roleInfo.color }}
+            >
+              {roleInfo.label}
+            </span>
+          </div>
+        </div>
+
+        {/* Navigation - ADMIN */}
+        <Can roles={['administrador']}>
+          <nav className="sidebar-nav">
+            <button
+              className={`sidebar-nav-item ${isActive('/dashboard') ? 'active' : ''}`}
+              onClick={() => handleNavigate('/dashboard')}
+            >
+              <span className="sidebar-nav-icon">📊</span>
+              <span className="sidebar-nav-label">Dashboard</span>
+            </button>
+
+            <button
+              className={`sidebar-nav-item ${isActive('/usuarios') ? 'active' : ''}`}
+              onClick={() => handleNavigate('/usuarios')}
+            >
+              <span className="sidebar-nav-icon">👥</span>
+              <span className="sidebar-nav-label">Usuarios</span>
+            </button>
+
+            <button
+              className={`sidebar-nav-item ${isActive('/solicitudes') ? 'active' : ''}`}
+              onClick={() => handleNavigate('/solicitudes')}
+            >
+              <span className="sidebar-nav-icon">⏳</span>
+              <span className="sidebar-nav-label">Solicitudes</span>
+            </button>
+
+            <button
+              className={`sidebar-nav-item ${isActive('/reportes') ? 'active' : ''}`}
+              onClick={() => handleNavigate('/reportes')}
+            >
+              <span className="sidebar-nav-icon">📈</span>
+              <span className="sidebar-nav-label">Reportes</span>
+            </button>
+
+            <button
+              className={`sidebar-nav-item ${isActive('/pacientes') ? 'active' : ''}`}
+              onClick={() => handleNavigate('/pacientes')}
+            >
+              <span className="sidebar-nav-icon">🧑</span>
+              <span className="sidebar-nav-label">Pacientes</span>
+            </button>
+
+            <button
+              className={`sidebar-nav-item ${isActive('/medicos') ? 'active' : ''}`}
+              onClick={() => handleNavigate('/medicos')}
+            >
+              <span className="sidebar-nav-icon">👨‍⚕️</span>
+              <span className="sidebar-nav-label">Médicos</span>
+            </button>
+
+            <button
+              className={`sidebar-nav-item ${isActive('/citas') ? 'active' : ''}`}
+              onClick={() => handleNavigate('/citas')}
+            >
+              <span className="sidebar-nav-icon">📅</span>
+              <span className="sidebar-nav-label">Citas</span>
+            </button>
+
+            <button
+              className={`sidebar-nav-item ${isActive('/facturacion') ? 'active' : ''}`}
+              onClick={() => handleNavigate('/facturacion')}
+            >
+              <span className="sidebar-nav-icon">💰</span>
+              <span className="sidebar-nav-label">Facturación</span>
+            </button>
+
+            <button
+              className={`sidebar-nav-item ${isActive('/historial') ? 'active' : ''}`}
+              onClick={() => handleNavigate('/historial')}
+            >
+              <span className="sidebar-nav-icon">📋</span>
+              <span className="sidebar-nav-label">Historial Médico</span>
+            </button>
+
+            <button
+              className={`sidebar-nav-item ${isActive('/auditoria') ? 'active' : ''}`}
+              onClick={() => handleNavigate('/auditoria')}
+            >
+              <span className="sidebar-nav-icon">🔍</span>
+              <span className="sidebar-nav-label">Auditoría</span>
+            </button>
+
+            <button
+              className={`sidebar-nav-item ${isActive('/configuracion') ? 'active' : ''}`}
+              onClick={() => handleNavigate('/configuracion')}
+            >
+              <span className="sidebar-nav-icon">⚙️</span>
+              <span className="sidebar-nav-label">Configuración</span>
+            </button>
+          </nav>
+        </Can>
+
+        {/* Navigation - RECEPCIONISTA */}
+        <Can roles={['recepcionista']}>
+          <nav className="sidebar-nav">
+            <button
+              className={`sidebar-nav-item ${isActive('/dashboard') ? 'active' : ''}`}
+              onClick={() => handleNavigate('/dashboard')}
+            >
+              <span className="sidebar-nav-icon">📊</span>
+              <span className="sidebar-nav-label">Dashboard</span>
+            </button>
+
+            <button
+              className={`sidebar-nav-item ${isActive('/pacientes') ? 'active' : ''}`}
+              onClick={() => handleNavigate('/pacientes')}
+            >
+              <span className="sidebar-nav-icon">🧑</span>
+              <span className="sidebar-nav-label">Pacientes</span>
+            </button>
+
+            <button
+              className={`sidebar-nav-item ${isActive('/citas') ? 'active' : ''}`}
+              onClick={() => handleNavigate('/citas')}
+            >
+              <span className="sidebar-nav-icon">📅</span>
+              <span className="sidebar-nav-label">Citas</span>
+            </button>
+          </nav>
+        </Can>
+
+        {/* Navigation - MÉDICO */}
+        <Can roles={['medico']}>
+          <nav className="sidebar-nav">
+            <button
+              className={`sidebar-nav-item ${isActive('/dashboard') ? 'active' : ''}`}
+              onClick={() => handleNavigate('/dashboard')}
+            >
+              <span className="sidebar-nav-icon">📊</span>
+              <span className="sidebar-nav-label">Dashboard</span>
+            </button>
+
+            <button
+              className={`sidebar-nav-item ${isActive('/citas') ? 'active' : ''}`}
+              onClick={() => handleNavigate('/citas')}
+            >
+              <span className="sidebar-nav-icon">📅</span>
+              <span className="sidebar-nav-label">Mis Citas</span>
+            </button>
+
+            <button
+              className={`sidebar-nav-item ${isActive('/historial') ? 'active' : ''}`}
+              onClick={() => handleNavigate('/historial')}
+            >
+              <span className="sidebar-nav-icon">📋</span>
+              <span className="sidebar-nav-label">Historial Médico</span>
+            </button>
+          </nav>
+        </Can>
+
+        {/* Logout button */}
+        <button className="sidebar-logout-btn" onClick={handleLogout}>
+          <span className="sidebar-nav-icon">🚪</span>
+          <span>Cerrar Sesión</span>
+        </button>
+      </aside>
+    </>
+  );
 };
 
 export default Navbar;

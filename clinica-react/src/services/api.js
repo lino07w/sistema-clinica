@@ -39,7 +39,21 @@ axiosInstance.interceptors.response.use(
 // API de autenticación
 export const authAPI = {
   login: (credentials) => axiosInstance.post('/auth/login', credentials),
+  register: (userData) => axiosInstance.post('/auth/register', userData),
   getMe: () => axiosInstance.get('/auth/me')
+};
+
+// API de usuarios
+export const usuariosAPI = {
+  getAll: () => axiosInstance.get('/usuarios'),
+  getPendientes: () => axiosInstance.get('/usuarios/pendientes'),
+  getById: (id) => axiosInstance.get(`/usuarios/${id}`),
+  create: (data) => axiosInstance.post('/usuarios', data),
+  update: (id, data) => axiosInstance.put(`/usuarios/${id}`, data),
+  delete: (id) => axiosInstance.delete(`/usuarios/${id}`),
+  aprobar: (id) => axiosInstance.post(`/usuarios/${id}/aprobar`),
+  rechazar: (id, motivo) => axiosInstance.post(`/usuarios/${id}/rechazar`, { motivo }),
+  cambiarEstado: (id, estado) => axiosInstance.patch(`/usuarios/${id}/estado`, { estado })
 };
 
 // API de pacientes
@@ -67,6 +81,33 @@ export const citasAPI = {
   create: (data) => axiosInstance.post('/citas', data),
   update: (id, data) => axiosInstance.put(`/citas/${id}`, data),
   delete: (id) => axiosInstance.delete(`/citas/${id}`)
+};
+
+// API de facturas
+export const facturasAPI = {
+  getAll: () => axiosInstance.get('/facturas'),
+  create: (data) => axiosInstance.post('/facturas', data),
+  update: (id, data) => axiosInstance.put(`/facturas/${id}`, data),
+  delete: (id) => axiosInstance.delete(`/facturas/${id}`)
+};
+
+// API de configuración
+export const configAPI = {
+  get: () => axiosInstance.get('/configuracion'),
+  update: (data) => axiosInstance.put('/configuracion', data)
+};
+
+// API para historial médico
+export const historialAPI = {
+  getAll: () => axiosInstance.get('/historial'),
+  create: (data) => axiosInstance.post('/historial', data),
+  update: (id, data) => axiosInstance.put(`/historial/${id}`, data),
+  delete: (id) => axiosInstance.delete(`/historial/${id}`),
+};
+
+// API para auditoría
+export const auditAPI = {
+  getAll: () => axiosInstance.get('/auditoria'),
 };
 
 export default axiosInstance;

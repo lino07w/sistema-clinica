@@ -3,7 +3,7 @@ import pacienteController from '../controllers/pacienteController.js';
 import medicoController from '../controllers/medicoController.js';
 import citaController from '../controllers/citaController.js';
 import { authenticate } from '../middleware/auth.js';
-import { isAdmin, isAdminOrRecepcionista, isAdminOrMedico } from '../middleware/authorize.js';
+import { isAdmin, isAdminOrRecepcionista, isAdminOrMedico, isStaff } from '../middleware/authorize.js';
 
 const pacienteRouter = express.Router();
 const medicoRouter = express.Router();
@@ -15,9 +15,9 @@ medicoRouter.use(authenticate);
 citaRouter.use(authenticate);
 
 /* ===================== PACIENTES ===================== */
-// Admin y Recepcionista pueden ver lista
-pacienteRouter.get('/', isAdminOrRecepcionista, pacienteController.getAll);
-pacienteRouter.get('/:id', isAdminOrRecepcionista, pacienteController.getById);
+// El personal (Admin, Médicos, Recepcionistas) puede ver lista y detalles
+pacienteRouter.get('/', isStaff, pacienteController.getAll);
+pacienteRouter.get('/:id', isStaff, pacienteController.getById);
 
 // Admin y Recepcionista pueden crear y actualizar
 pacienteRouter.post('/', isAdminOrRecepcionista, pacienteController.create);
