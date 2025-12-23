@@ -21,23 +21,13 @@ const app = express();
 // Middleware de seguridad
 app.use(helmet());
 
-// CORS - CONFIGURACIÓN CORREGIDA
+// CORS - Usar configuración desde config.js (soporta desarrollo y producción)
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:5174',
-    'http://127.0.0.1:5174',
-    'http://localhost:5175',
-    'http://127.0.0.1:5175',
-    'http://localhost:5500',
-    'http://127.0.0.1:5500',
-  ],
-  credentials: true,
+  origin: config.cors.origin,
+  credentials: config.cors.credentials,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
 // Rate limiting - ACTIVADO PARA SEGURIDAD
 const limiter = rateLimit({
   windowMs: config.rateLimit?.windowMs || 15 * 60 * 1000,
