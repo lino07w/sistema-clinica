@@ -77,9 +77,25 @@ export { app, sequelize };
 
 // Solo iniciar si no estamos en modo de prueba
 if (process.env.NODE_ENV !== 'test') {
-  sequelize.authenticate()
-    .then(() => {
+  const start = async () => {
+    try {
+      await sequelize.authenticate();
       console.log('✅ Conexión a PostgreSQL establecida correctamente');
+
+      await sequelize.sync({ alter: true });
+
+      const { User } = db;
+      const adminExists = await User.findOne({ where: { rol: 'administrador' } });
+      if (!adminExists) {
+        await User.create({
+          username: process.env.DEFAULT_ADMIN_USERNAME || 'admin',
+          email: 'admin@clinica.com',
+          password: process.env.DEFAULT_ADMIN_PASSWORD || '123456',
+          nombre: 'Administrador Sistema',
+          rol: 'administrador',
+          estado: 'activo'
+        });
+      }
 
       app.listen(PORT, () => {
         console.log(`
@@ -109,11 +125,12 @@ Endpoints disponibles:
 Presiona CTRL+C para detener el servidor
         `);
       });
-    })
-    .catch(err => {
-      console.error('❌ Error conectando a PostgreSQL:', err.message);
+    } catch (err) {
+      console.error('❌ Error iniciando la aplicación:', err.message);
       process.exit(1);
-    });
+    }
+  };
+  start();
 }
 
 export default app;
