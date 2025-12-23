@@ -10,12 +10,12 @@ const config = {
     expire: process.env.JWT_EXPIRE || '7d'
   },
 
-  cors: {
+cors: {
   origin: process.env.NODE_ENV === 'production' 
     ? [
         'https://clinica-front-nira.onrender.com',
         process.env.FRONTEND_URL
-      ]
+      ].filter(Boolean)  // <-- Esto elimina valores undefined
     : [
         'http://localhost:5173',
         'http://127.0.0.1:5173',
