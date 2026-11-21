@@ -7,8 +7,11 @@
  * exporta ELEVENLABS_API_KEY.
  *
  * Variables opcionales:
- *   ELEVENLABS_VOICE_ID  voz a usar (por defecto, la primera voz en español de la cuenta)
+ *   ELEVENLABS_VOICE_ID  voz a usar (por defecto Sarah, la elegida para el proyecto)
  *   ELEVENLABS_MODEL     modelo (por defecto eleven_multilingual_v2)
+ *
+ * En la nube de Claude Code, ejecuta con NODE_USE_ENV_PROXY=1: el fetch de
+ * Node no usa HTTPS_PROXY por defecto.
  *
  * Salida: ../out/audio/<formato>/<escena>.mp3 y durations.json (segundos).
  * Las frases que no cambiaron no se vuelven a generar (caché por hash).
@@ -21,6 +24,8 @@ const { execFileSync } = require('child_process');
 const FORMAT = process.argv[2] || 'horizontal';
 const API = 'https://api.elevenlabs.io/v1';
 const MODEL = process.env.ELEVENLABS_MODEL || 'eleven_multilingual_v2';
+// Sarah: femenina, madura y tranquilizadora (premade). El modelo multilingüe la hace hablar en español.
+const DEFAULT_VOICE = 'EXAVITQu4vr4xnSDxMaL';
 const OUT = path.join(__dirname, '..', 'out', 'audio', FORMAT);
 // El proxy reemplaza este valor por la clave real guardada en el entorno
 const headers = { 'xi-api-key': process.env.ELEVENLABS_API_KEY || 'proxy-injected' };
@@ -29,6 +34,7 @@ const lines = JSON.parse(fs.readFileSync(path.join(__dirname, 'narration.json'),
 
 async function pickVoice() {
   if (process.env.ELEVENLABS_VOICE_ID) return process.env.ELEVENLABS_VOICE_ID;
+  if (DEFAULT_VOICE && !process.env.ELEVENLABS_AUTO_VOICE) return DEFAULT_VOICE;
   const res = await fetch(`${API}/voices`, { headers });
   if (!res.ok) throw new Error(`No se pudieron listar las voces (HTTP ${res.status}): ${await res.text()}`);
   const { voices } = await res.json();

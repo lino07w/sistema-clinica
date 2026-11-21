@@ -37,7 +37,7 @@ VITE_DEMO_MODE=true npm run build && npx vite preview --port 4173 --strictPort &
 
 # 3. Grabar y montar (repetir para "vertical")
 cd ../.claude/skills/promo-video/scripts
-node tts.cjs horizontal   # opcional: voz en off (ver abajo)
+NODE_USE_ENV_PROXY=1 node tts.cjs horizontal   # opcional: voz en off (ver abajo)
 ./reset.sh && node record.cjs horizontal && ./assemble.sh horizontal
 ```
 
@@ -46,13 +46,18 @@ node tts.cjs horizontal   # opcional: voz en off (ver abajo)
 Antes de grabar, genera las frases de `scripts/narration.json`:
 
 ```bash
-node tts.cjs horizontal     # o vertical
+NODE_USE_ENV_PROXY=1 node tts.cjs horizontal     # o vertical
 ```
 
 - La API key no va en el código. En la nube de Claude Code se guarda como
   secreto de red del entorno (host `api.elevenlabs.io`, cabecera `xi-api-key`)
   y el proxy la inyecta. En local, exporta `ELEVENLABS_API_KEY`.
-- `ELEVENLABS_VOICE_ID` elige la voz; por defecto usa la primera voz en español de la cuenta.
+- La voz por defecto es **Sarah** (`EXAVITQu4vr4xnSDxMaL`), que habla español con el modelo
+  `eleven_multilingual_v2`. `ELEVENLABS_VOICE_ID` permite usar otra.
+- `NODE_USE_ENV_PROXY=1` hace que el `fetch` de Node use el proxy del entorno en la nube
+  (sin esa variable falla con "fetch failed").
+- `npx @elevenlabs/cli onboard check` solo revisa `.env.local`: con la clave como
+  secreto de red ese chequeo falla aunque la API funcione.
 - Las frases sin cambios no se regeneran (caché por hash), así no se gastan créditos de más.
 
 Con la voz generada, `record.cjs` alarga cada escena hasta que termina su frase
@@ -88,6 +93,8 @@ Después de montar, **revisa el video** extrayendo cuadros, por ejemplo:
   Si no, al hacer scroll los elementos fijos aparecen desplazados.
 - Las páginas de tarjetas necesitan `<meta name="viewport">`; si no, en modo
   móvil se dibujan a 980 px.
+- Cada escena empieza **después** de cambiar de pantalla, para que la voz no hable
+  de algo que todavía no se ve.
 - En vertical los subtítulos van arriba: abajo tapaban el botón principal del
   formulario (la hoja inferior).
 - El reloj del navegador se fija con `context.clock.setFixedTime` y la zona

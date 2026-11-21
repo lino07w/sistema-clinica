@@ -150,9 +150,9 @@ async function scriptHorizontal(page) {
   await moveTo(page.locator('.timeline-hour', { hasText: '11:00' }).locator('.appointment'), 26);
   await sleep(1600);
 
-  await scene('reportes', 'Reportes y exportación', 'Excel y PDF con un clic');
   await press(page.locator('.sidebar').getByRole('link', { name: 'Reportes' }));
   await page.locator('.figures').waitFor();
+  await scene('reportes', 'Reportes y exportación', 'Excel y PDF con un clic');
   await sleep(900);
   await moveTo(page.getByRole('button', { name: 'Citas en Excel' }), 24);
   await sleep(600);
@@ -160,9 +160,9 @@ async function scriptHorizontal(page) {
   await scroll(520, 40);
   await sleep(1000);
 
-  await scene('tema', 'Modo claro y oscuro', 'Cómodo de día y de noche');
   await press(page.locator('.sidebar').getByRole('link', { name: 'Agenda' }));
   await page.locator('.timeline').waitFor();
+  await scene('tema', 'Modo claro y oscuro', 'Cómodo de día y de noche');
   await sleep(500);
   await press(page.getByRole('button', { name: 'Usar tema oscuro' }));
   await sleep(1700);
