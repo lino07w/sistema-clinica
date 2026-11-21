@@ -3,9 +3,44 @@
  */
 
 import citaService from '../services/citaService.js';
-import { logAction } from '../utils/auditLogger.js';
-import { successResponse, errorResponse, notFoundResponse } from '../utils/response.js';
+import { logUserAction } from '../utils/auditLogger.js';
+import { successResponse, errorResponse } from '../utils/response.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { sendEmail } from '../utils/emailSender.js';
+import { escapeHtml } from '../utils/html.js';
+import db from '../models/index.js';
+
+const { Paciente } = db;
+
+/** Envía al paciente la confirmación de su cita (si tiene email). */
+const sendConfirmationEmail = async (cita) => {
+  const paciente = await Paciente.findByPk(cita.pacienteId);
+  if (!paciente?.email) return;
+
+  const nombre = escapeHtml(paciente.nombre);
+  const fecha = escapeHtml(cita.fecha);
+  const hora = escapeHtml(cita.hora);
+
+  await sendEmail({
+    email: paciente.email,
+    subject: 'Confirmación de Cita Médica',
+    message: `Hola ${paciente.nombre}, tu cita ha sido programada para el día ${cita.fecha} a las ${cita.hora}.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px;">
+        <h2 style="color: #0A4D68; text-align: center;">Confirmación de Cita</h2>
+        <p>Hola <strong>${nombre}</strong>,</p>
+        <p>Tu cita médica ha sido programada exitosamente con los siguientes detalles:</p>
+        <div style="background-color: #f8fafc; padding: 15px; border-radius: 6px; margin: 20px 0;">
+          <p style="margin: 5px 0;"><strong>📅 Fecha:</strong> ${fecha}</p>
+          <p style="margin: 5px 0;"><strong>⏰ Hora:</strong> ${hora}</p>
+        </div>
+        <p>Por favor, llega 10 minutos antes de tu hora programada.</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+        <p style="font-size: 12px; color: #64748b; text-align: center;">Este es un mensaje automático, por favor no respondas a este correo.</p>
+      </div>
+    `
+  });
+};
 
 class CitaController {
   getAll = asyncHandler(async (req, res) => {
@@ -44,39 +79,14 @@ class CitaController {
   create = asyncHandler(async (req, res) => {
     // Solo Admin y Recepcionista pueden crear citas (validado en rutas)
     const cita = await citaService.create(req.body);
-    const userId = req.user ? req.user.id : 'unknown';
-    const userName = req.user ? (req.user.nombre || req.user.username) : 'Unknown';
-    logAction(userId, userName, 'CREATE', 'CITA', `Cita creada para ${cita.fecha} a las ${cita.hora}`);
+    logUserAction(req, 'CREATE', 'CITA', `Cita creada para ${cita.fecha} a las ${cita.hora}`);
 
-    // Intentar enviar correo de confirmación
+    // El correo es best-effort: un fallo no debe impedir crear la cita.
+    // Se espera (await) porque en serverless el proceso se congela tras responder.
     try {
-      const { Paciente } = await import('../models/index.js').then(m => m.default);
-      const paciente = await Paciente.findByPk(cita.pacienteId);
-
-      if (paciente && paciente.email) {
-        const { sendEmail } = await import('../utils/emailSender.js');
-        await sendEmail({
-          email: paciente.email,
-          subject: 'Confirmación de Cita Médica',
-          message: `Hola ${paciente.nombre}, tu cita ha sido programada para el día ${cita.fecha} a las ${cita.hora}.`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px;">
-              <h2 style="color: #0A4D68; text-align: center;">Confirmación de Cita</h2>
-              <p>Hola <strong>${paciente.nombre}</strong>,</p>
-              <p>Tu cita médica ha sido programada exitosamente con los siguientes detalles:</p>
-              <div style="background-color: #f8fafc; padding: 15px; border-radius: 6px; margin: 20px 0;">
-                <p style="margin: 5px 0;"><strong>📅 Fecha:</strong> ${cita.fecha}</p>
-                <p style="margin: 5px 0;"><strong>⏰ Hora:</strong> ${cita.hora}</p>
-              </div>
-              <p>Por favor, llega 10 minutos antes de tu hora programada.</p>
-              <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-              <p style="font-size: 12px; color: #64748b; text-align: center;">Este es un mensaje automático, por favor no respondas a este correo.</p>
-            </div>
-          `
-        });
-      }
-    } catch (emailError) {
-      console.error('Error enviando correo de confirmación:', emailError);
+      await sendConfirmationEmail(cita);
+    } catch (err) {
+      console.error('Error enviando correo de confirmación:', err.message);
     }
 
     successResponse(res, cita, 'Cita creada exitosamente', 201);
@@ -98,26 +108,20 @@ class CitaController {
       };
 
       const cita = await citaService.update(req.params.id, datosPermitidos);
-      const userId = req.user ? req.user.id : 'unknown';
-      const userName = req.user ? (req.user.nombre || req.user.username) : 'Unknown';
-      logAction(userId, userName, 'UPDATE', 'CITA', `Estado de cita actualizado: ${cita.estado}`);
+      logUserAction(req, 'UPDATE', 'CITA', `Estado de cita actualizado: ${cita.estado}`);
       return successResponse(res, cita, 'Estado de cita actualizado exitosamente');
     }
 
     // Admin y Recepcionista pueden actualizar todo
     const cita = await citaService.update(req.params.id, req.body);
-    const userId = req.user ? req.user.id : 'unknown';
-    const userName = req.user ? (req.user.nombre || req.user.username) : 'Unknown';
-    logAction(userId, userName, 'UPDATE', 'CITA', `Cita actualizada`);
+    logUserAction(req, 'UPDATE', 'CITA', `Cita actualizada`);
     successResponse(res, cita, 'Cita actualizada exitosamente');
   });
 
   delete = asyncHandler(async (req, res) => {
     // Solo Admin puede eliminar (validado en rutas)
     await citaService.delete(req.params.id);
-    const userId = req.user ? req.user.id : 'unknown';
-    const userName = req.user ? (req.user.nombre || req.user.username) : 'Unknown';
-    logAction(userId, userName, 'DELETE', 'CITA', `Cita eliminada: ID ${req.params.id}`);
+    logUserAction(req, 'DELETE', 'CITA', `Cita eliminada: ID ${req.params.id}`);
     successResponse(res, null, 'Cita eliminada exitosamente');
   });
 

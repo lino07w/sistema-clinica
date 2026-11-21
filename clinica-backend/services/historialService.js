@@ -1,4 +1,5 @@
 import db from '../models/index.js';
+import { ApiError } from '../middleware/errorHandler.js';
 const { HistorialMedico, Paciente, Medico } = db;
 
 class HistorialService {
@@ -20,32 +21,32 @@ class HistorialService {
                 { model: Medico, as: 'medico' }
             ]
         });
-        if (!historial) throw new Error('Registro de historial no encontrado');
+        if (!historial) throw ApiError.notFound('Registro de historial no encontrado');
         return historial;
     }
 
     async create(historialData) {
         // Verificar que el paciente existe
         const paciente = await Paciente.findByPk(historialData.pacienteId);
-        if (!paciente) throw new Error('Paciente no encontrado');
+        if (!paciente) throw ApiError.notFound('Paciente no encontrado');
 
         // Verificar que el médico existe
         const medico = await Medico.findByPk(historialData.medicoId);
-        if (!medico) throw new Error('Médico no encontrado');
+        if (!medico) throw ApiError.notFound('Médico no encontrado');
 
         return await HistorialMedico.create(historialData);
     }
 
     async update(id, historialData) {
         const historial = await HistorialMedico.findByPk(id);
-        if (!historial) throw new Error('Registro de historial no encontrado');
+        if (!historial) throw ApiError.notFound('Registro de historial no encontrado');
 
         return await historial.update(historialData);
     }
 
     async delete(id) {
         const historial = await HistorialMedico.findByPk(id);
-        if (!historial) throw new Error('Registro de historial no encontrado');
+        if (!historial) throw ApiError.notFound('Registro de historial no encontrado');
 
         await historial.destroy();
         return true;

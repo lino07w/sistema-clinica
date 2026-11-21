@@ -1,6 +1,6 @@
 import db from '../models/index.js';
 
-const { sequelize, User, Paciente, Medico, Cita, Factura, HistorialMedico, Config, AuditLog } = db;
+const { sequelize, User, Paciente, Medico, Cita, Factura, HistorialMedico, AuditLog } = db;
 
 async function verify() {
     try {
@@ -35,12 +35,12 @@ async function verify() {
         console.log(`✅ Se pueden leer ${usuarios.length} usuarios`);
 
         if (pacienteCount > 0) {
-            const pacientes = await Paciente.findAll({ limit: 1 });
+            await Paciente.findAll({ limit: 1 });
             console.log(`✅ Se pueden leer pacientes`);
         }
 
         if (citaCount > 0) {
-            const citas = await Cita.findAll({
+            await Cita.findAll({
                 include: [
                     { model: Paciente, as: 'paciente' },
                     { model: Medico, as: 'medico' }

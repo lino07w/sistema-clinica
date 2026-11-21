@@ -1,58 +1,43 @@
- import { Sequelize } from 'sequelize';
-import dotenv from 'dotenv';
+/**
+ * Conexión a PostgreSQL mediante Sequelize.
+ *
+ * Soporta `DATABASE_URL` (Neon, Render, Vercel Postgres...) o variables
+ * `DB_*` individuales. `pg` se pasa explícitamente como `dialectModule`
+ * para que los bundlers serverless (Vercel) lo incluyan en el paquete.
+ */
 
-dotenv.config();
+import pg from 'pg';
+import { Sequelize } from 'sequelize';
+import config from './config.js';
 
-// Si existe DATABASE_URL, usarla directamente (Render)
-const sequelize = process.env.DATABASE_URL 
-    ? new Sequelize(process.env.DATABASE_URL, {
-        dialect: 'postgres',
-        dialectOptions: {
-            ssl: {
-                require: true,
-                rejectUnauthorized: false
-            }
-        },
-        logging: process.env.NODE_ENV === 'development' ? console.log : false,
-        pool: {
-            max: 5,
-            min: 0,
-            acquire: 30000,
-            idle: 10000
-        },
-        define: {
-            timestamps: true,
-            underscored: false,
-            freezeTableName: true,
-        }
-    })
-    : new Sequelize(
-        process.env.DB_NAME || 'clinica_db',
-        process.env.DB_USER || 'postgres',
-        process.env.DB_PASSWORD || '',
-        {
-            host: process.env.DB_HOST || 'localhost',
-            port: parseInt(process.env.DB_PORT) || 5432,
-            dialect: 'postgres',
-            dialectOptions: {
-                ssl: process.env.NODE_ENV === 'production' ? {
-                    require: true,
-                    rejectUnauthorized: false
-                } : false
-            },
-            logging: process.env.NODE_ENV === 'development' ? console.log : false,
-            pool: {
-                max: 5,
-                min: 0,
-                acquire: 30000,
-                idle: 10000
-            },
-            define: {
-                timestamps: true,
-                underscored: false,
-                freezeTableName: true,
-            }
-        }
-    );
+const { database } = config;
+
+const options = {
+  dialect: 'postgres',
+  dialectModule: pg,
+  dialectOptions: database.ssl
+    ? { ssl: { require: true, rejectUnauthorized: false } }
+    : {},
+  logging: database.logging ? console.log : false,
+  pool: {
+    max: database.poolMax,
+    min: 0,
+    acquire: 30000,
+    idle: 10000
+  },
+  define: {
+    timestamps: true,
+    underscored: false,
+    freezeTableName: true
+  }
+};
+
+const sequelize = database.url
+  ? new Sequelize(database.url, options)
+  : new Sequelize(database.name, database.user, database.password, {
+    ...options,
+    host: database.host,
+    port: database.port
+  });
 
 export default sequelize;

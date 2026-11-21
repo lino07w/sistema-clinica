@@ -1,5 +1,4 @@
 import db from '../models/index.js';
-import bcrypt from 'bcryptjs';
 
 const { sequelize, User, Paciente, Medico, Cita, Factura, HistorialMedico, Config } = db;
 
@@ -21,9 +20,6 @@ async function seedData() {
         });
 
         // 2. Usuarios del personal
-        const salt = await bcrypt.genSalt(10);
-        const hashedAdminPassword = await bcrypt.hash('123456', salt);
-
         await User.create({
             username: 'admin',
             email: 'admin@clinica.com',

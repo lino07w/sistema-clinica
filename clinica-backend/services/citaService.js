@@ -1,5 +1,6 @@
 import { Op } from 'sequelize';
 import db from '../models/index.js';
+import { ApiError } from '../middleware/errorHandler.js';
 const { Cita, Paciente, Medico } = db;
 
 class CitaService {
@@ -21,18 +22,18 @@ class CitaService {
         { model: Medico, as: 'medico' }
       ]
     });
-    if (!cita) throw new Error('Cita no encontrada');
+    if (!cita) throw ApiError.notFound('Cita no encontrada');
     return cita;
   }
 
   async create(citaData) {
     // Verificar que el paciente existe
     const paciente = await Paciente.findByPk(citaData.pacienteId);
-    if (!paciente) throw new Error('Paciente no encontrado');
+    if (!paciente) throw ApiError.notFound('Paciente no encontrado');
 
     // Verificar que el médico existe
     const medico = await Medico.findByPk(citaData.medicoId);
-    if (!medico) throw new Error('Médico no encontrado');
+    if (!medico) throw ApiError.notFound('Médico no encontrado');
 
     // Verificar disponibilidad (no dos citas a la misma hora con el mismo médico)
     const conflicto = await Cita.findOne({
@@ -45,7 +46,7 @@ class CitaService {
     });
 
     if (conflicto) {
-      throw new Error('Ya existe una cita programada para ese médico en ese horario');
+      throw ApiError.conflict('Ya existe una cita programada para ese médico en ese horario');
     }
 
     return await Cita.create(citaData);
@@ -53,7 +54,7 @@ class CitaService {
 
   async update(id, citaData) {
     const cita = await Cita.findByPk(id);
-    if (!cita) throw new Error('Cita no encontrada');
+    if (!cita) throw ApiError.notFound('Cita no encontrada');
 
     // Si se está cambiando la hora o fecha, verificar disponibilidad
     if ((citaData.fecha && citaData.fecha !== cita.fecha) ||
@@ -71,7 +72,7 @@ class CitaService {
       });
 
       if (conflicto) {
-        throw new Error('Ya existe una cita programada para ese médico en ese horario');
+        throw ApiError.conflict('Ya existe una cita programada para ese médico en ese horario');
       }
     }
 
@@ -80,7 +81,7 @@ class CitaService {
 
   async delete(id) {
     const cita = await Cita.findByPk(id);
-    if (!cita) throw new Error('Cita no encontrada');
+    if (!cita) throw ApiError.notFound('Cita no encontrada');
 
     await cita.destroy();
     return true;

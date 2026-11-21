@@ -1,5 +1,6 @@
 import { Op } from 'sequelize';
 import db from '../models/index.js';
+import { ApiError } from '../middleware/errorHandler.js';
 const { Paciente } = db;
 
 class PacienteService {
@@ -12,14 +13,14 @@ class PacienteService {
 
   async getById(id) {
     const paciente = await Paciente.findByPk(id);
-    if (!paciente) throw new Error('Paciente no encontrado');
+    if (!paciente) throw ApiError.notFound('Paciente no encontrado');
     return paciente;
   }
 
   async create(pacienteData) {
     // Verificar DNI duplicado
     const existingDni = await Paciente.findOne({ where: { dni: pacienteData.dni } });
-    if (existingDni) throw new Error('Ya existe un paciente con este DNI');
+    if (existingDni) throw ApiError.conflict('Ya existe un paciente con este DNI');
 
     // Rellenar campos faltantes con valores por defecto para evitar errores
     pacienteData.genero = pacienteData.genero || 'No especificado';
@@ -31,7 +32,7 @@ class PacienteService {
 
   async update(id, pacienteData) {
     const paciente = await Paciente.findByPk(id);
-    if (!paciente) throw new Error('Paciente no encontrado');
+    if (!paciente) throw ApiError.notFound('Paciente no encontrado');
 
     // Verificar DNI duplicado si cambió
     if (pacienteData.dni && pacienteData.dni !== paciente.dni) {
@@ -41,7 +42,7 @@ class PacienteService {
           id: { [Op.ne]: id }
         }
       });
-      if (duplicateDni) throw new Error('Ya existe un paciente con este DNI');
+      if (duplicateDni) throw ApiError.conflict('Ya existe un paciente con este DNI');
     }
 
     return await paciente.update(pacienteData);
@@ -49,13 +50,13 @@ class PacienteService {
 
   async delete(id) {
     const paciente = await Paciente.findByPk(id);
-    if (!paciente) throw new Error('Paciente no encontrado');
+    if (!paciente) throw ApiError.notFound('Paciente no encontrado');
 
     // Verificar si tiene citas asociadas
     const { Cita } = db;
     const citasCount = await Cita.count({ where: { pacienteId: id } });
     if (citasCount > 0) {
-      throw new Error('No se puede eliminar el paciente porque tiene citas asociadas');
+      throw ApiError.conflict('No se puede eliminar el paciente porque tiene citas asociadas');
     }
 
     await paciente.destroy();

@@ -1,25 +1,30 @@
 import nodemailer from 'nodemailer';
 import config from '../config/config.js';
 
-export const sendEmail = async (options) => {
-    // Configuración del transportador (ejemplo con Gmail o Mailtrap)
-    // Deberías configurar estas variables en tu .env
-    const transporter = nodemailer.createTransport({
-        host: process.env.EMAIL_HOST || 'smtp.mailtrap.io',
-        port: process.env.EMAIL_PORT || 2525,
-        auth: {
-            user: process.env.EMAIL_USER || '',
-            pass: process.env.EMAIL_PASS || '',
-        },
+let transporter;
+
+/** Transporter reutilizable (se crea una sola vez, de forma perezosa). */
+const getTransporter = () => {
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      host: config.email.host,
+      port: config.email.port,
+      auth: { user: config.email.user, pass: config.email.pass }
     });
+  }
+  return transporter;
+};
 
-    const mailOptions = {
-        from: `"Sistema Clínica" <noreply@clinica.com>`,
-        to: options.email,
-        subject: options.subject,
-        text: options.message,
-        html: options.html,
-    };
-
-    await transporter.sendMail(mailOptions);
+/**
+ * Envía un correo electrónico.
+ * @param {{ email: string, subject: string, message: string, html?: string }} options
+ */
+export const sendEmail = async ({ email, subject, message, html }) => {
+  await getTransporter().sendMail({
+    from: config.email.from,
+    to: email,
+    subject,
+    text: message,
+    html
+  });
 };

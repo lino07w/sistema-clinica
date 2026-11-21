@@ -13,12 +13,9 @@ const options = {
         },
         servers: [
             {
-                url: process.env.NODE_ENV === 'production' 
-                    ? 'https://clinica-backend.onrender.com'  // Ajusta con tu URL real
-                    : 'http://localhost:3000',
-                description: process.env.NODE_ENV === 'production' 
-                    ? 'Servidor de Producción'
-                    : 'Servidor de Desarrollo',
+                // URL relativa: funciona igual en local, Docker o Vercel
+                url: '/',
+                description: 'Servidor actual',
             },
         ],
         components: {
@@ -36,7 +33,7 @@ const options = {
             },
         ],
     },
-    apis: ['./routes/*.js'],
+    apis: [new URL('../routes/*.js', import.meta.url).pathname],
 };
 
 const specs = swaggerJsdoc(options);
