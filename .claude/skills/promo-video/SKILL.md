@@ -70,7 +70,7 @@ Después de montar, **revisa el video** extrayendo cuadros, por ejemplo:
 ## Personalizar
 
 - **Guion:** las funciones `scriptHorizontal` y `scriptVertical` de `record.cjs`.
-  Cada escena llama a `caption(título, subtítulo)` y a acciones (`press`, `type`, `scroll`, `moveTo`).
+  Cada escena empieza con `scene(id, título, subtítulo)` y sigue con acciones (`press`, `type`, `scroll`, `moveTo`).
 - **Textos de las tarjetas:** `card.html` (`kind=intro` / `kind=outro`).
 - **Locución:** `narration.json`, una frase por escena (el mismo id que usa `scene()` en `record.cjs`).
 - **Hora simulada:** `PROMO_TIME=10:40` (la marca "ahora" de la agenda).
