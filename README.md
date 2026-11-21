@@ -19,7 +19,7 @@ Aplicación **full stack** para administrar una clínica: pacientes, médicos, c
 
 > Los datos de la demo son ficticios. Si los modificas, otros visitantes verán tus cambios.
 
-![Dashboard](docs/screenshots/dashboard.png)
+![Agenda del día](docs/screenshots/dashboard.png)
 
 <details>
 <summary>Más capturas</summary>
@@ -27,8 +27,8 @@ Aplicación **full stack** para administrar una clínica: pacientes, médicos, c
 | Citas | Reportes |
 |---|---|
 | ![Citas](docs/screenshots/citas.png) | ![Reportes](docs/screenshots/reportes.png) |
-| **Pacientes** | **Login** |
-| ![Pacientes](docs/screenshots/pacientes.png) | ![Login](docs/screenshots/login.png) |
+| **Agenda en modo oscuro** | **Login** |
+| ![Agenda en modo oscuro](docs/screenshots/dashboard-dark.png) | ![Login](docs/screenshots/login.png) |
 
 </details>
 
@@ -36,6 +36,7 @@ Aplicación **full stack** para administrar una clínica: pacientes, médicos, c
 
 ## Funcionalidades
 
+- **Agenda del día** como pantalla de inicio: línea de tiempo por hora con la marca de "ahora", navegación entre días y huecos libres que abren "Nueva cita" con la hora sugerida.
 - **Autenticación JWT** con registro de profesionales sujeto a **aprobación del administrador**.
 - **4 roles** (administrador, médico, recepcionista, paciente) con permisos verificados en el backend y en la UI. Un médico sólo ve y modifica sus propias citas.
 - **CRUD** de pacientes, médicos, citas, historial médico, facturas y usuarios.
@@ -44,13 +45,13 @@ Aplicación **full stack** para administrar una clínica: pacientes, médicos, c
 - **Exportación a Excel y PDF**.
 - **Auditoría**: registro de quién hizo qué y cuándo.
 - Email de confirmación de citas y recuperación de contraseña.
-- Modo oscuro.
+- Modo claro y oscuro, diseño responsive y accesible (etiquetas en todos los campos, foco visible, navegación con teclado).
 
 ## Stack
 
 | Capa | Tecnologías |
 |---|---|
-| Frontend | React 19, Vite, React Router 7, React Hook Form + Zod, Axios, Chart.js |
+| Frontend | React 19, Vite, React Router 7, React Hook Form + Zod, Axios, Chart.js, lucide-react, IBM Plex Sans |
 | Backend | Node.js 22, Express 5, Sequelize 6, JWT, bcrypt, Helmet, express-rate-limit, Swagger |
 | Base de datos | PostgreSQL 16 |
 | Calidad | Jest + Supertest, ESLint, GitHub Actions |
@@ -89,6 +90,7 @@ clinica-backend/
 - **Errores tipados (`ApiError`)**: los servicios lanzan errores con su código HTTP (400/404/409) y un único middleware arma la respuesta. En producción nunca se exponen stacks ni mensajes internos.
 - **Configuración fail-fast**: en producción la app no arranca si falta `JWT_SECRET`; no hay secretos por defecto.
 - **Seguridad**: whitelist de campos en el registro (evita *mass assignment*), contraseñas y tokens de recuperación hasheados, el hash nunca se serializa en las respuestas, respuestas que no permiten enumerar usuarios, HTML escapado en emails, Helmet y rate limiting.
+- **Sistema de diseño propio** ([docs/DESIGN.md](docs/DESIGN.md)): tokens de color y tipografía en CSS, clases compartidas en lugar de estilos inline y una identidad basada en el uso real (la agenda), no en una plantilla de tarjetas. Se trabajó con la skill [`frontend-design`](.claude/skills/frontend-design) de Anthropic, incluida en el repositorio.
 - **Rendimiento del frontend**: *code splitting* por ruta y carga diferida de las librerías de exportación. El bundle inicial pasó de 1,4 MB a 242 kB (79 kB gzip).
 
 ## Ejecutar en local
