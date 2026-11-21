@@ -1,0 +1,22 @@
+{
+  "horizontal": {
+    "intro": "¿Tu clínica todavía organiza las citas en papel o en hojas de cálculo?",
+    "login": "Entra en segundos con una cuenta de demostración.",
+    "agenda": "Lo primero que ves es la agenda del día: quién viene, a qué hora y con qué médico.",
+    "agendar": "¿Hay un hueco libre? Haz clic y agenda la cita. La fecha y la hora ya vienen puestas.",
+    "lista": "Y aparece al instante en la agenda de todo el equipo.",
+    "reportes": "Consulta los reportes y expórtalos a Excel o PDF con un clic.",
+    "tema": "Y trabaja cómodo, de día o de noche.",
+    "outro": "Pruébalo tú mismo en la demo en vivo."
+  },
+  "vertical": {
+    "intro": "¿Tu clínica todavía organiza las citas en papel?",
+    "login": "Entra en segundos con una cuenta de demostración.",
+    "agenda": "Tu agenda del día, siempre en el bolsillo.",
+    "agendar": "Toca un hueco libre y agenda la cita. La fecha y la hora ya vienen puestas.",
+    "historial": "Todas las citas, pensadas para la pantalla del móvil.",
+    "menu": "Pacientes, facturación y reportes, a un toque.",
+    "lista": "Y tu nueva cita ya está en la agenda.",
+    "outro": "Pruébalo en la demo en vivo."
+  }
+}

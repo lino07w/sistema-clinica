@@ -57,7 +57,12 @@ async function startRecording(page, outDir, { scale = 1, workers = 3, quality = 
       if (frames.length) lines.push(`file '${path.resolve(frames[frames.length - 1].file)}'`);
       fs.writeFileSync(path.join(outDir, 'list.txt'), lines.join('\n'));
       const seconds = (end - t0) / 1000;
-      return { frames: frames.length, seconds: +seconds.toFixed(1), fps: +(frames.length / seconds).toFixed(1) };
+      return {
+        frames: frames.length,
+        seconds: +seconds.toFixed(1),
+        fps: +(frames.length / seconds).toFixed(1),
+        firstFrameAt: frames.length ? frames[0].t : t0,
+      };
     },
   };
 }

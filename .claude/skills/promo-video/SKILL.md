@@ -37,8 +37,28 @@ VITE_DEMO_MODE=true npm run build && npx vite preview --port 4173 --strictPort &
 
 # 3. Grabar y montar (repetir para "vertical")
 cd ../.claude/skills/promo-video/scripts
+node tts.cjs horizontal   # opcional: voz en off (ver abajo)
 ./reset.sh && node record.cjs horizontal && ./assemble.sh horizontal
 ```
+
+### Voz en off con ElevenLabs (opcional)
+
+Antes de grabar, genera las frases de `scripts/narration.json`:
+
+```bash
+node tts.cjs horizontal     # o vertical
+```
+
+- La API key no va en el código. En la nube de Claude Code se guarda como
+  secreto de red del entorno (host `api.elevenlabs.io`, cabecera `xi-api-key`)
+  y el proxy la inyecta. En local, exporta `ELEVENLABS_API_KEY`.
+- `ELEVENLABS_VOICE_ID` elige la voz; por defecto usa la primera voz en español de la cuenta.
+- Las frases sin cambios no se regeneran (caché por hash), así no se gastan créditos de más.
+
+Con la voz generada, `record.cjs` alarga cada escena hasta que termina su frase
+y `assemble.sh` coloca cada frase en el segundo de su escena, con el volumen
+normalizado a -16 LUFS (el estándar de las redes). Si no hay voz, el video lleva
+una pista silenciosa.
 
 Los videos quedan en `.claude/skills/promo-video/out/promo-<formato>.mp4`
 (carpeta ignorada por git). Ejecuta siempre `reset.sh` antes de cada grabación:
@@ -52,6 +72,7 @@ Después de montar, **revisa el video** extrayendo cuadros, por ejemplo:
 - **Guion:** las funciones `scriptHorizontal` y `scriptVertical` de `record.cjs`.
   Cada escena llama a `caption(título, subtítulo)` y a acciones (`press`, `type`, `scroll`, `moveTo`).
 - **Textos de las tarjetas:** `card.html` (`kind=intro` / `kind=outro`).
+- **Locución:** `narration.json`, una frase por escena (el mismo id que usa `scene()` en `record.cjs`).
 - **Hora simulada:** `PROMO_TIME=10:40` (la marca "ahora" de la agenda).
 - **Otra URL:** `PROMO_APP_URL` y `PROMO_API_URL`.
 

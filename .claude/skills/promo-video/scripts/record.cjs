@@ -27,7 +27,15 @@ const CONTEXTS = {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function recordCard(browser, kind, ms) {
+/* Voz en off (opcional): si tts.cjs generó las frases, cada escena dura al
+   menos lo que dura su frase, para que la voz nunca se corte. */
+const AUDIO = path.join(__dirname, '..', 'out', 'audio', FORMAT);
+const DURATIONS_FILE = path.join(AUDIO, 'durations.json');
+const DURATIONS = fs.existsSync(DURATIONS_FILE) ? JSON.parse(fs.readFileSync(DURATIONS_FILE, 'utf8')) : {};
+const VOICE_PAD_MS = 350;
+
+async function recordCard(browser, kind, minMs) {
+  const ms = Math.max(minMs, (DURATIONS[kind] ?? 0) * 1000 + 900);
   const ctx = await browser.newContext(CONTEXTS[FORMAT]);
   const page = await ctx.newPage();
   await page.goto(`file://${path.join(__dirname, 'card.html')}?kind=${kind}`);
@@ -76,16 +84,34 @@ function actions(page, mobile) {
     }
   };
 
-  return { caption, moveTo, press, type, scroll };
+  // Escenas: subtítulo + marca de tiempo para colocar la voz en el montaje
+  const timeline = [];
+  let sceneEnd = 0;
+  const waitScene = async () => {
+    const left = sceneEnd - Date.now();
+    if (left > 0) await sleep(left);
+  };
+  const scene = async (id, title, sub) => {
+    await waitScene();
+    await caption(title, sub);
+    timeline.push({ id, at: Date.now() });
+    sceneEnd = Date.now() + (DURATIONS[id] ? DURATIONS[id] * 1000 + VOICE_PAD_MS : 0);
+  };
+  const end = async () => {
+    await waitScene();
+    await caption('');
+  };
+
+  return { caption, moveTo, press, type, scroll, scene, end, timeline };
 }
 
 /* ---------- Guion ---------- */
 
 async function scriptHorizontal(page) {
-  const { caption, moveTo, press, type, scroll } = actions(page, false);
+  const { moveTo, press, type, scroll, scene, end, timeline } = actions(page, false);
 
   await page.mouse.move(980, 420);
-  await caption('Entra en segundos', 'Con una cuenta de demostración');
+  await scene('login', 'Entra en segundos', 'Con una cuenta de demostración');
   await sleep(900);
   await press(page.getByRole('button', { name: 'Usar' }).first());
   await sleep(400);
@@ -93,14 +119,14 @@ async function scriptHorizontal(page) {
   await page.waitForURL('**/dashboard');
   await page.locator('.timeline').waitFor();
 
-  await caption('La agenda del día, de un vistazo', 'Quién viene, a qué hora y con qué médico');
+  await scene('agenda', 'La agenda del día, de un vistazo', 'Quién viene, a qué hora y con qué médico');
   await sleep(1200);
   await moveTo(page.locator('.appointment').nth(1), 30);
   await sleep(700);
   await moveTo(page.locator('.timeline-now'), 20);
   await sleep(1100);
 
-  await caption('Agenda una cita en un hueco libre', 'La fecha y la hora ya vienen puestas');
+  await scene('agendar', 'Agenda una cita en un hueco libre', 'La fecha y la hora ya vienen puestas');
   const libre = page.getByRole('button', { name: 'Agendar una cita a las 11:00' });
   await moveTo(libre, 26);
   await sleep(900);
@@ -120,11 +146,11 @@ async function scriptHorizontal(page) {
 
   await press(page.locator('.sidebar').getByRole('link', { name: 'Agenda' }));
   await page.locator('.timeline').waitFor();
-  await caption('Lista al instante', 'Y el equipo la ve en su agenda');
+  await scene('lista', 'Lista al instante', 'Y el equipo la ve en su agenda');
   await moveTo(page.locator('.timeline-hour', { hasText: '11:00' }).locator('.appointment'), 26);
   await sleep(1600);
 
-  await caption('Reportes y exportación', 'Excel y PDF con un clic');
+  await scene('reportes', 'Reportes y exportación', 'Excel y PDF con un clic');
   await press(page.locator('.sidebar').getByRole('link', { name: 'Reportes' }));
   await page.locator('.figures').waitFor();
   await sleep(900);
@@ -134,20 +160,21 @@ async function scriptHorizontal(page) {
   await scroll(520, 40);
   await sleep(1000);
 
-  await caption('Modo claro y oscuro', 'Cómodo de día y de noche');
+  await scene('tema', 'Modo claro y oscuro', 'Cómodo de día y de noche');
   await press(page.locator('.sidebar').getByRole('link', { name: 'Agenda' }));
   await page.locator('.timeline').waitFor();
   await sleep(500);
   await press(page.getByRole('button', { name: 'Usar tema oscuro' }));
   await sleep(1700);
-  await caption('');
+  await end();
   await sleep(500);
+  return timeline;
 }
 
 async function scriptVertical(page) {
-  const { caption, press, type, scroll } = actions(page, true);
+  const { press, type, scroll, scene, end, timeline } = actions(page, true);
 
-  await caption('Entra en segundos', 'Con una cuenta de demostración');
+  await scene('login', 'Entra en segundos', 'Con una cuenta de demostración');
   await sleep(900);
   await press(page.getByRole('button', { name: 'Usar' }).first());
   await sleep(350);
@@ -155,12 +182,12 @@ async function scriptVertical(page) {
   await page.waitForURL('**/dashboard');
   await page.locator('.timeline').waitFor();
 
-  await caption('Tu agenda del día', 'Siempre en el bolsillo');
+  await scene('agenda', 'Tu agenda del día', 'Siempre en el bolsillo');
   await sleep(1100);
   await scroll(260, 30);
   await sleep(900);
 
-  await caption('Agenda en un hueco libre', 'Fecha y hora ya puestas');
+  await scene('agendar', 'Agenda en un hueco libre', 'Fecha y hora ya puestas');
   await press(page.getByRole('button', { name: 'Agendar una cita a las 11:00' }));
   await page.locator('#c-paciente').waitFor();
   await sleep(700);
@@ -176,23 +203,24 @@ async function scriptVertical(page) {
   await press(page.getByRole('button', { name: 'Agendar cita' }));
   await sleep(1000);
 
-  await caption('Todo el historial de citas', 'Pensado para la pantalla del móvil');
+  await scene('historial', 'Todo el historial de citas', 'Pensado para la pantalla del móvil');
   await sleep(600);
   await scroll(900, 45);
   await sleep(700);
 
-  await caption('Todo a un toque', 'Pacientes, facturación y reportes');
+  await scene('menu', 'Todo a un toque', 'Pacientes, facturación y reportes');
   await press(page.getByRole('button', { name: 'Abrir menú' }));
   await sleep(1300);
   await press(page.locator('.sidebar').getByRole('link', { name: 'Agenda' }));
   await page.locator('.timeline').waitFor();
   await sleep(500);
-  await caption('Lista al instante', 'Tu nueva cita, en la agenda');
+  await scene('lista', 'Lista al instante', 'Tu nueva cita, en la agenda');
   await page.locator('.timeline-hour', { hasText: '11:00' }).scrollIntoViewIfNeeded();
   await page.evaluate(() => window.scrollBy({ top: -120, behavior: 'smooth' }));
   await sleep(1800);
-  await caption('');
+  await end();
   await sleep(400);
+  return timeline;
 }
 
 /* ---------- Ejecución ---------- */
@@ -222,10 +250,15 @@ async function scriptVertical(page) {
   await sleep(300);
 
   const rec = await startRecording(page, path.join(OUT, 'app'), { scale: CONTEXTS[FORMAT].deviceScaleFactor });
+  let timeline = [];
   try {
-    await (FORMAT === 'vertical' ? scriptVertical : scriptHorizontal)(page);
+    timeline = await (FORMAT === 'vertical' ? scriptVertical : scriptHorizontal)(page);
   } finally {
-    console.log('app', await rec.stop());
+    const info = await rec.stop();
+    console.log('app', info);
+    // Segundo de cada escena respecto al primer cuadro del segmento "app"
+    const scenes = timeline.map(({ id, at }) => ({ id, at: +((at - info.firstFrameAt) / 1000).toFixed(3) }));
+    fs.writeFileSync(path.join(OUT, 'timeline.json'), JSON.stringify(scenes, null, 2));
   }
   await ctx.close();
 
