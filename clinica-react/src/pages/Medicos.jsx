@@ -135,12 +135,13 @@ const Medicos = () => {
             </button>
           </div>
 
-          {/* Barra de búsqueda */}
-          <SearchBar
-            value={searchTerm}
-            onChange={setSearchTerm}
-            placeholder="Buscar por nombre, especialidad o matrícula"
-          />
+          <div className="page-toolbar">
+            <SearchBar
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="Buscar por nombre, especialidad o matrícula"
+            />
+          </div>
 
           {loading ? (
             <Spinner />
@@ -189,11 +190,11 @@ const Medicos = () => {
                         paginatedData.map((m) => (
                           <tr key={m.id}>
                             <td>{m.nombre}</td>
-                            <td>
+                            <td data-label="Especialidad">
                               {m.especialidad}
                             </td>
-                            <td>{m.matricula || '-'}</td>
-                            <td>{m.telefono || '-'}</td>
+                            <td data-label="Matrícula">{m.matricula || '-'}</td>
+                            <td data-label="Teléfono">{m.telefono || '-'}</td>
                             <td className="cell-actions">
                               <button
                                 className="btn btn-ghost btn-sm"

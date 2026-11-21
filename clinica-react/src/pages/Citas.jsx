@@ -245,19 +245,17 @@ const Citas = () => {
           {/* ... resto del JSX de búsqueda y tabla ... */}
 
           <Can roles={['administrador', 'recepcionista']}>
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
-              <div style={{ flex: 1 }}>
-                <SearchBar
-                  value={searchTerm}
-                  onChange={setSearchTerm}
-                  placeholder="Buscar por paciente, médico o fecha"
-                />
-              </div>
+            <div className="page-toolbar">
+              <SearchBar
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder="Buscar por paciente, médico o fecha"
+              />
               <ExportButtons
-                data={citas.map(c => ({
+                data={citas.map((c) => ({
                   ...c,
-                  paciente: c.pacienteNombre || getNombrePaciente(c.pacienteId),
-                  medico: c.medicoNombre || getNombreMedico(c.medicoId)
+                  paciente: c.paciente?.nombre || getNombrePaciente(c.pacienteId),
+                  medico: c.medico?.nombre || getNombreMedico(c.medicoId),
                 }))}
                 fileName="Reporte_Citas"
                 title="Reporte de Citas"
@@ -333,11 +331,11 @@ const Citas = () => {
                         paginatedData.map(c => (
                           <tr key={c.id}>
                             <td>{c.paciente?.nombre || getNombrePaciente(c.pacienteId)}</td>
-                            <td>{c.medico?.nombre || getNombreMedico(c.medicoId)}</td>
-                            <td className="tabular cell-nowrap">{formatShortDate(c.fecha)}</td>
-                            <td className="tabular">{normalizeTime(c.hora)}</td>
-                            <td>{c.motivo || '-'}</td>
-                            <td>
+                            <td data-label="Médico">{c.medico?.nombre || getNombreMedico(c.medicoId)}</td>
+                            <td className="tabular cell-nowrap" data-label="Fecha">{formatShortDate(c.fecha)}</td>
+                            <td className="tabular" data-label="Hora">{normalizeTime(c.hora)}</td>
+                            <td data-label="Motivo">{c.motivo || '-'}</td>
+                            <td data-label="Estado">
                               <StatusBadge estado={c.estado} />
                             </td>
                             <td className="cell-actions">

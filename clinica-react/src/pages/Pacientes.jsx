@@ -198,9 +198,9 @@ const Pacientes = () => {
                         paginatedData.map((paciente) => (
                           <tr key={paciente.id}>
                             <td>{paciente.nombre}</td>
-                            <td>{paciente.dni}</td>
-                            <td>{paciente.email}</td>
-                            <td>{paciente.telefono || '-'}</td>
+                            <td data-label="DNI">{paciente.dni}</td>
+                            <td data-label="Email">{paciente.email}</td>
+                            <td data-label="Teléfono">{paciente.telefono || '-'}</td>
                             <td className="cell-actions">
                               <button className="btn btn-ghost btn-sm" onClick={() => handleEdit(paciente)}>
                                 Editar

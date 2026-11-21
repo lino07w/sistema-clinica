@@ -217,10 +217,10 @@ const HistorialMedico = () => {
                                             filteredHistorial.map(record => (
                                                 <tr key={record.id}>
                                                     <td className="tabular cell-nowrap">{formatShortDate(record.fecha)}</td>
-                                                    <td>{record.pacienteNombre}</td>
-                                                    <td>{record.medicoNombre}</td>
-                                                    <td>{record.diagnostico}</td>
-                                                    <td>
+                                                    <td data-label="Paciente">{record.pacienteNombre}</td>
+                                                    <td data-label="Médico">{record.medicoNombre}</td>
+                                                    <td data-label="Diagnóstico">{record.diagnostico}</td>
+                                                    <td data-label="Tratamiento">
                                                         <div className="cell-truncate" title={record.tratamiento}>{record.tratamiento}</div>
                                                     </td>
                                                     <td className="cell-actions">

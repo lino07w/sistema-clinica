@@ -168,13 +168,27 @@ fieldset {
   font-variant-numeric: tabular-nums;
 }
 
+/* Oculto a la vista pero legible por lectores de pantalla.
+   top/left fijos: así nunca amplía el ancho de la página aunque esté
+   dentro de una tabla con scroll horizontal. */
 .visually-hidden {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+/* Red de seguridad: el contenido nunca debe desplazar la página de lado */
+html,
+body {
+  overflow-x: clip;
 }
 
 /* ---------- Botones ---------- */

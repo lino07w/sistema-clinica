@@ -115,10 +115,10 @@ const Auditoria = () => {
                     filteredLogs.map((log) => (
                       <tr key={log.id}>
                         <td className="tabular cell-nowrap">{dateTimeFormatter.format(new Date(log.timestamp))}</td>
-                        <td>{log.usuarioNombre}</td>
-                        <td>{ACTION_LABELS[log.accion] ?? log.accion}</td>
-                        <td>{ENTITY_LABELS[log.entidad] ?? log.entidad}</td>
-                        <td className="cell-soft">{log.detalles}</td>
+                        <td data-label="Persona">{log.usuarioNombre}</td>
+                        <td data-label="Acción">{ACTION_LABELS[log.accion] ?? log.accion}</td>
+                        <td data-label="Sobre">{ENTITY_LABELS[log.entidad] ?? log.entidad}</td>
+                        <td data-label="Detalle" className="cell-soft">{log.detalles}</td>
                       </tr>
                     ))
                   )}

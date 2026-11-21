@@ -199,10 +199,10 @@ const Facturacion = () => {
                                             filteredFacturas.map((f) => (
                                                 <tr key={f.id}>
                                                     <td className="tabular cell-nowrap">{formatShortDate(f.fecha)}</td>
-                                                    <td>{f.pacienteNombre}</td>
-                                                    <td>{f.concepto}</td>
-                                                    <td className="tabular cell-amount">{formatCurrency(f.monto)}</td>
-                                                    <td>
+                                                    <td data-label="Paciente">{f.pacienteNombre}</td>
+                                                    <td data-label="Concepto">{f.concepto}</td>
+                                                    <td data-label="Monto" className="tabular cell-amount">{formatCurrency(f.monto)}</td>
+                                                    <td data-label="Estado">
                                                         <StatusBadge estado={f.estado} />
                                                     </td>
                                                     <td className="cell-actions">

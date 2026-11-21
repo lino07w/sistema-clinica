@@ -323,10 +323,10 @@ const Reportes = () => {
                       {medicosRanking.map((m) => (
                         <tr key={m.id}>
                           <td>{m.nombre}</td>
-                          <td>{m.especialidad}</td>
-                          <td className="cell-amount tabular">{m.total}</td>
-                          <td className="cell-amount tabular">{m.atendidas}</td>
-                          <td className="cell-amount tabular">{m.cerradas ? `${m.tasa}%` : '—'}</td>
+                          <td data-label="Especialidad">{m.especialidad}</td>
+                          <td data-label="Citas" className="cell-amount tabular">{m.total}</td>
+                          <td data-label="Atendidas" className="cell-amount tabular">{m.atendidas}</td>
+                          <td data-label="Asistencia" className="cell-amount tabular">{m.cerradas ? `${m.tasa}%` : '—'}</td>
                         </tr>
                       ))}
                     </tbody>

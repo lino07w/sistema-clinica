@@ -4,6 +4,7 @@ import Navbar from '../components/Navbar';
 import ContentWrapper from '../components/ContentWrapper';
 import { Plus } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
+import { formatShortDate } from '../utils/dates';
 
 const ROLE_LABELS = {
   administrador: 'Administrador',
@@ -168,12 +169,13 @@ const Usuarios = () => {
             </button>
           </div>
 
-          {/* Barra de búsqueda */}
-          <SearchBar
-            value={searchTerm}
-            onChange={setSearchTerm}
-            placeholder="Buscar por nombre, email o rol"
-          />
+          <div className="page-toolbar">
+            <SearchBar
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="Buscar por nombre, email o rol"
+            />
+          </div>
 
           {loading ? (
             <Spinner />
@@ -210,7 +212,7 @@ const Usuarios = () => {
                         />
                         <TableHeader
                           column="ultimoAcceso"
-                          label="Último Acceso"
+                          label="Último acceso"
                           sortConfig={sortConfig}
                           onSort={handleSort}
                         />
@@ -228,10 +230,10 @@ const Usuarios = () => {
                         paginatedData.map((u) => (
                           <tr key={u.id}>
                             <td>{u.nombre}</td>
-                            <td>{u.email}</td>
-                            <td>{ROLE_LABELS[u.rol] ?? u.rol}</td>
-                            <td><StatusBadge estado={u.estado} /></td>
-                            <td>{u.ultimoAcceso || 'Nunca'}</td>
+                            <td data-label="Email">{u.email}</td>
+                            <td data-label="Rol">{ROLE_LABELS[u.rol] ?? u.rol}</td>
+                            <td data-label="Estado"><StatusBadge estado={u.estado} /></td>
+                            <td data-label="Último acceso">{u.ultimoAcceso ? formatShortDate(u.ultimoAcceso) : 'Nunca'}</td>
                             <td className="cell-actions">
                               <button
                                 className="btn btn-ghost btn-sm"
