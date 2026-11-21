@@ -54,7 +54,7 @@ Aplicación **full stack** para administrar una clínica: pacientes, médicos, c
 | Backend | Node.js 22, Express 5, Sequelize 6, JWT, bcrypt, Helmet, express-rate-limit, Swagger |
 | Base de datos | PostgreSQL 16 |
 | Calidad | Jest + Supertest, ESLint, GitHub Actions |
-| Infraestructura | Docker / Docker Compose, Vercel (frontend estático + backend serverless) |
+| Infraestructura | Docker / Docker Compose, Vercel (frontend estático + backend serverless), Supabase (PostgreSQL) |
 
 ## Arquitectura
 
@@ -62,7 +62,7 @@ Aplicación **full stack** para administrar una clínica: pacientes, médicos, c
 flowchart LR
   U[Navegador] -->|HTTPS| F[React SPA<br/>Vercel CDN]
   F -->|REST + JWT| A[API Express<br/>Vercel Function]
-  A --> R[Rutas] --> M[Middlewares<br/>auth · roles · rate limit] --> C[Controladores] --> S[Servicios] --> O[(PostgreSQL<br/>Sequelize)]
+  A --> R[Rutas] --> M[Middlewares<br/>auth · roles · rate limit] --> C[Controladores] --> S[Servicios] --> O[(PostgreSQL<br/>Supabase)]
 ```
 
 El backend sigue una **arquitectura en capas**:
@@ -144,7 +144,7 @@ El repositorio tiene dos proyectos de Vercel conectados a GitHub:
 | `sistema-clinica` (frontend) | `clinica-react` | `VITE_API_URL` |
 | `sistema-clinica-api` (backend) | `clinica-backend` | `DATABASE_URL`, `JWT_SECRET`, `FRONTEND_URL`, `DEFAULT_ADMIN_PASSWORD`, `SEED_DEMO_DATA` (opcional) |
 
-La base de datos es PostgreSQL serverless (Neon, integrado desde la pestaña *Storage* de Vercel). Con `SEED_DEMO_DATA=true`, si la base de datos está vacía se cargan los datos de demostración.
+La base de datos es **PostgreSQL en Supabase**. La aplicación se conecta mediante el *connection pooler* (Supavisor, modo transacción, puerto `6543`), recomendado para funciones serverless e IPv4, con un usuario dedicado `clinica_app` de privilegios mínimos. Las tablas tienen RLS activado y no conceden permisos a los roles públicos de Supabase, así que no son accesibles desde su API REST. Con `SEED_DEMO_DATA=true`, si la base de datos está vacía se cargan los datos de demostración.
 
 ## Próximos pasos
 
