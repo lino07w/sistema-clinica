@@ -1,5 +1,6 @@
 import { Op } from 'sequelize';
 import db from '../models/index.js';
+import { ApiError } from '../middleware/errorHandler.js';
 const { Medico } = db;
 
 class MedicoService {
@@ -12,7 +13,7 @@ class MedicoService {
 
   async getById(id) {
     const medico = await Medico.findByPk(id);
-    if (!medico) throw new Error('Médico no encontrado');
+    if (!medico) throw ApiError.notFound('Médico no encontrado');
     return medico;
   }
 
@@ -21,14 +22,14 @@ class MedicoService {
     const existingMatricula = await Medico.findOne({
       where: { matricula: medicoData.matricula }
     });
-    if (existingMatricula) throw new Error('Ya existe un médico con esta matrícula');
+    if (existingMatricula) throw ApiError.conflict('Ya existe un médico con esta matrícula');
 
     return await Medico.create({ ...medicoData, activo: true });
   }
 
   async update(id, medicoData) {
     const medico = await Medico.findByPk(id);
-    if (!medico) throw new Error('Médico no encontrado');
+    if (!medico) throw ApiError.notFound('Médico no encontrado');
 
     // Verificar matrícula duplicada si cambió
     if (medicoData.matricula && medicoData.matricula !== medico.matricula) {
@@ -38,7 +39,7 @@ class MedicoService {
           id: { [Op.ne]: id }
         }
       });
-      if (duplicateMatricula) throw new Error('Ya existe un médico con esta matrícula');
+      if (duplicateMatricula) throw ApiError.conflict('Ya existe un médico con esta matrícula');
     }
 
     return await medico.update(medicoData);
@@ -46,13 +47,13 @@ class MedicoService {
 
   async delete(id) {
     const medico = await Medico.findByPk(id);
-    if (!medico) throw new Error('Médico no encontrado');
+    if (!medico) throw ApiError.notFound('Médico no encontrado');
 
     // Verificar si tiene citas asociadas
     const { Cita } = db;
     const citasCount = await Cita.count({ where: { medicoId: id } });
     if (citasCount > 0) {
-      throw new Error('No se puede eliminar el médico porque tiene citas asociadas');
+      throw ApiError.conflict('No se puede eliminar el médico porque tiene citas asociadas');
     }
 
     await medico.destroy();

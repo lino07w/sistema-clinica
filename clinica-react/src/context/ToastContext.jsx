@@ -1,66 +1,40 @@
-import React, { createContext, useState, useContext, useCallback } from 'react';
+import { createContext, useCallback, useContext, useRef, useState } from 'react';
 import Toast from '../components/Toast';
+import '../styles/Toast.css';
 
 const ToastContext = createContext();
 
-export const useToast = () => {
-    return useContext(ToastContext);
-};
+export const useToast = () => useContext(ToastContext);
 
 export const ToastProvider = ({ children }) => {
-    const [toasts, setToasts] = useState([]);
+  const [toasts, setToasts] = useState([]);
+  const nextId = useRef(0);
 
-    // addToast(message, type, duration)
-    const addToast = useCallback((message, type = 'info', duration = 3000) => {
-        const id = Date.now().toString(); // Simple ID generation
-        setToasts((prevToasts) => [...prevToasts, { id, message, type, duration }]);
-    }, []);
+  const removeToast = useCallback((id) => {
+    setToasts((current) => current.filter((toast) => toast.id !== id));
+  }, []);
 
-    const removeToast = useCallback((id) => {
-        setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id));
-    }, []);
+  /** addToast(mensaje, 'success' | 'error' | 'warning' | 'info', duraciónMs) */
+  const addToast = useCallback((message, type = 'info', duration = 3500) => {
+    nextId.current += 1;
+    const id = nextId.current;
+    setToasts((current) => [...current, { id, message, type, duration }]);
+  }, []);
 
-    const value = {
-        addToast,
-        removeToast
-    };
-
-    return (
-        <ToastContext.Provider value={value}>
-            {children}
-            <div style={styles.toastContainer}>
-                {toasts.map((toast) => (
-                    <Toast
-                        key={toast.id}
-                        message={toast.message}
-                        type={toast.type}
-                        duration={toast.duration}
-                        onClose={() => removeToast(toast.id)}
-                    />
-                ))}
-            </div>
-        </ToastContext.Provider>
-    );
+  return (
+    <ToastContext.Provider value={{ addToast, removeToast }}>
+      {children}
+      <div className="toast-region" aria-live="polite">
+        {toasts.map((toast) => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            duration={toast.duration}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
 };
-
-const styles = {
-    toastContainer: {
-        position: 'fixed',
-        top: '1rem',
-        right: '1rem',
-        zIndex: 9999,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0.5rem',
-        pointerEvents: 'none', // Allow clicks through container
-    },
-};
-
-// Override pointer events for children to allow interaction
-// Note: We need to ensure the Toast component itself has pointer-events: auto
-// I'll add that to the Toast component styles in Toast.jsx via an update if needed,
-// but simplified: the container structure usually handles this better if items are wrapped.
-// Actually, applying pointerEvents: 'auto' to the Toast component wrapper is the standard way.
-// Let's rely on Toast.jsx having default block behavior which takes pointer events.
-// But wait, if container has pointer-events: none, children inherit it unless overridden.
-// I will check Toast.jsx style again.

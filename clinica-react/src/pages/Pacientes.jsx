@@ -3,6 +3,8 @@ import { pacientesAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import Navbar from '../components/Navbar';
 import ContentWrapper from '../components/ContentWrapper';
+import { Plus } from 'lucide-react';
+import '../styles/Page.css';
 import SearchBar from '../components/SearchBar';
 import Pagination from '../components/Pagination';
 import TableHeader from '../components/TableHeader';
@@ -65,10 +67,10 @@ const Pacientes = () => {
     try {
       if (editando) {
         await pacientesAPI.update(editando, data);
-        addToast('Paciente actualizado correctamente', 'success');
+        addToast('Cambios guardados', 'success');
       } else {
         await pacientesAPI.create(data);
-        addToast('Paciente creado correctamente', 'success');
+        addToast('Paciente registrado', 'success');
       }
       setShowModal(false);
       reset();
@@ -115,7 +117,7 @@ const Pacientes = () => {
   const confirmarEliminacion = async () => {
     try {
       await pacientesAPI.delete(pacienteAEliminar);
-      addToast('Paciente eliminado correctamente', 'success');
+      addToast('Paciente eliminado', 'success');
       cargarPacientes();
     } catch (error) {
       addToast(error.response?.data?.message || 'Error al eliminar paciente', 'error');
@@ -129,11 +131,12 @@ const Pacientes = () => {
     <>
       <Navbar />
       <ContentWrapper>
-        <main style={styles.content}>
-          <div style={styles.header}>
-            <h1 style={styles.title}>Gestión de Pacientes</h1>
-            <button style={styles.btnPrimary} onClick={handleNuevo}>
-              + Nuevo Paciente
+        <main className="page">
+          <div className="page-header">
+            <h1 className="page-title">Pacientes</h1>
+            <button type="button" className="btn btn-primary" onClick={handleNuevo}>
+              <Plus size={16} aria-hidden="true" />
+              Nuevo paciente
             </button>
           </div>
 
@@ -141,8 +144,8 @@ const Pacientes = () => {
             <Spinner />
           ) : (
             <>
-              <div style={styles.filterSection}>
-                <SearchBar value={searchTerm} onChange={setSearchTerm} placeholder="Buscar por nombre o DNI..." />
+              <div className="page-toolbar">
+                <SearchBar value={searchTerm} onChange={setSearchTerm} placeholder="Buscar por nombre o DNI" />
                 <ExportButtons
                   data={pacientes}
                   fileName="pacientes"
@@ -158,9 +161,9 @@ const Pacientes = () => {
                 />
               </div>
 
-              <div style={styles.tableWrapper}>
-                <div style={styles.tableContainer}>
-                  <table style={styles.table}>
+              <div className="table-scroll">
+                <div className="table-panel">
+                  <table className="data-table">
                     <thead>
                       <tr>
                         <TableHeader
@@ -187,22 +190,22 @@ const Pacientes = () => {
                           sortConfig={sortConfig}
                           onSort={handleSort}
                         />
-                        <th style={styles.th}>Acciones</th>
+                        <th className="cell-actions"><span className="visually-hidden">Acciones</span></th>
                       </tr>
                     </thead>
                     <tbody>
                       {paginatedData.length > 0 ? (
                         paginatedData.map((paciente) => (
-                          <tr key={paciente.id} style={styles.tr}>
-                            <td style={styles.td}>{paciente.nombre}</td>
-                            <td style={styles.td}>{paciente.dni}</td>
-                            <td style={styles.td}>{paciente.email}</td>
-                            <td style={styles.td}>{paciente.telefono || '-'}</td>
-                            <td style={styles.tdActions}>
-                              <button style={styles.btnEdit} onClick={() => handleEdit(paciente)}>
+                          <tr key={paciente.id}>
+                            <td>{paciente.nombre}</td>
+                            <td data-label="DNI">{paciente.dni}</td>
+                            <td data-label="Email">{paciente.email}</td>
+                            <td data-label="Teléfono">{paciente.telefono || '-'}</td>
+                            <td className="cell-actions">
+                              <button className="btn btn-ghost btn-sm" onClick={() => handleEdit(paciente)}>
                                 Editar
                               </button>
-                              <button style={styles.btnDelete} onClick={() => handleDelete(paciente.id)}>
+                              <button className="btn btn-ghost btn-sm btn-ghost-danger" onClick={() => handleDelete(paciente.id)}>
                                 Eliminar
                               </button>
                             </td>
@@ -210,7 +213,7 @@ const Pacientes = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="5" style={styles.empty}>No se encontraron pacientes</td>
+                          <td colSpan="5" className="table-empty">No se encontraron pacientes</td>
                         </tr>
                       )}
                     </tbody>
@@ -232,70 +235,77 @@ const Pacientes = () => {
             isOpen={showConfirm}
             onClose={() => setShowConfirm(false)}
             onConfirm={confirmarEliminacion}
-            title="Eliminar Paciente"
-            message="¿Está seguro de que desea eliminar este paciente? Esta acción no se puede deshacer."
+            title="¿Eliminar este paciente?"
+            message="Esta acción no se puede deshacer."
+            confirmText="Eliminar paciente"
           />
 
           {/* Modal */}
           {showModal && (
-            <div style={styles.modalOverlay} onClick={() => setShowModal(false)}>
-              <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-                <h2 style={styles.modalTitle}>
-                  {editando ? 'Editar Paciente' : 'Nuevo Paciente'}
+            <div className="modal-overlay" onClick={() => setShowModal(false)}>
+              <div className="modal" onClick={(e) => e.stopPropagation()}>
+                <h2 className="modal-title">
+                  {editando ? 'Editar paciente' : 'Nuevo paciente'}
                 </h2>
-                <form onSubmit={handleSubmit(onSubmit)} style={styles.form}>
-                  <div style={styles.inputGroup}>
+                <form onSubmit={handleSubmit(onSubmit)} className="modal-form">
+                  <div className="field">
+                    <label className="field-label" htmlFor="nombre">Nombre completo <span aria-hidden="true">*</span></label>
                     <input
-                      style={{ ...styles.input, borderColor: errors.nombre ? '#DC2626' : 'var(--border-color)' }}
+                      id="nombre"
+                      className="field-input" aria-invalid={Boolean(errors.nombre)}
                       type="text"
-                      placeholder="Nombre completo *"
                       {...register('nombre')}
                     />
-                    {errors.nombre && <span style={styles.errorText}>{errors.nombre.message}</span>}
+                    {errors.nombre && <span className="field-error">{errors.nombre.message}</span>}
                   </div>
 
-                  <div style={styles.inputGroup}>
+                  <div className="field">
+                    <label className="field-label" htmlFor="dni">DNI <span aria-hidden="true">*</span></label>
                     <input
-                      style={{ ...styles.input, borderColor: errors.dni ? '#DC2626' : 'var(--border-color)' }}
+                      id="dni"
+                      className="field-input" aria-invalid={Boolean(errors.dni)}
                       type="text"
-                      placeholder="DNI *"
                       {...register('dni')}
                     />
-                    {errors.dni && <span style={styles.errorText}>{errors.dni.message}</span>}
+                    {errors.dni && <span className="field-error">{errors.dni.message}</span>}
                   </div>
 
-                  <div style={styles.inputGroup}>
+                  <div className="field">
+                    <label className="field-label" htmlFor="fechaNacimiento">Fecha de nacimiento</label>
                     <input
-                      style={styles.input}
+                      id="fechaNacimiento"
+                      className="field-input"
                       type="date"
-                      placeholder="Fecha de Nacimiento"
                       {...register('fechaNacimiento')}
                     />
                   </div>
 
-                  <div style={styles.inputGroup}>
+                  <div className="field">
+                    <label className="field-label" htmlFor="telefono">Teléfono</label>
                     <input
-                      style={styles.input}
+                      id="telefono"
+                      className="field-input"
                       type="tel"
-                      placeholder="Teléfono"
                       {...register('telefono')}
                     />
                   </div>
 
-                  <div style={styles.inputGroup}>
+                  <div className="field">
+                    <label className="field-label" htmlFor="email">Email</label>
                     <input
-                      style={{ ...styles.input, borderColor: errors.email ? '#DC2626' : 'var(--border-color)' }}
+                      id="email"
+                      className="field-input" aria-invalid={Boolean(errors.email)}
                       type="email"
-                      placeholder="Email"
                       {...register('email')}
                     />
-                    {errors.email && <span style={styles.errorText}>{errors.email.message}</span>}
+                    {errors.email && <span className="field-error">{errors.email.message}</span>}
                   </div>
 
-                  <div style={styles.inputGroup}>
-                    <label style={{ marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Género *</label>
+                  <div className="field">
+                    <label className="field-label" htmlFor="genero">Género <span aria-hidden="true">*</span></label>
                     <select
-                      style={{ ...styles.input, padding: '0.6rem' }}
+                      id="genero"
+                      className="field-input"
                       {...register('genero')}
                     >
                       <option value="Masculino">Masculino</option>
@@ -303,29 +313,30 @@ const Pacientes = () => {
                       <option value="Otro">Otro</option>
                       <option value="No especificado">No especificado</option>
                     </select>
-                    {errors.genero && <span style={styles.errorText}>{errors.genero.message}</span>}
+                    {errors.genero && <span className="field-error">{errors.genero.message}</span>}
 
                   </div>
 
-                  <div style={styles.inputGroup}>
+                  <div className="field">
+                    <label className="field-label" htmlFor="direccion">Dirección</label>
                     <input
-                      style={styles.input}
+                      id="direccion"
+                      className="field-input"
                       type="text"
-                      placeholder="Dirección"
                       {...register('direccion')}
                     />
                   </div>
 
-                  <div style={styles.modalActions}>
+                  <div className="modal-actions">
                     <button
                       type="button"
-                      style={styles.btnCancel}
+                      className="btn btn-secondary"
                       onClick={() => setShowModal(false)}
                     >
                       Cancelar
                     </button>
-                    <button type="submit" style={styles.btnSubmit}>
-                      {editando ? 'Actualizar' : 'Crear'}
+                    <button type="submit" className="btn btn-primary">
+                      {editando ? 'Guardar cambios' : 'Registrar paciente'}
                     </button>
                   </div>
                 </form>
@@ -338,200 +349,5 @@ const Pacientes = () => {
   );
 };
 
-const styles = {
-  content: {
-    flex: 1,
-    width: '100%',
-    padding: 'clamp(1rem, 3vw, 2rem)',
-    maxWidth: '100%',
-    minHeight: '100vh',
-    background: 'var(--bg-main)',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '2rem',
-    flexWrap: 'wrap',
-    gap: '1rem',
-  },
-  filterSection: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1.5rem',
-    flexWrap: 'wrap',
-    gap: '1rem',
-  },
-  title: {
-    fontSize: 'clamp(1.5rem, 5vw, 2rem)',
-    color: 'var(--primary-color)',
-    fontWeight: '700',
-    margin: 0,
-  },
-  btnPrimary: {
-    padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(1rem, 3vw, 1.5rem)',
-    background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-color))',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.5rem',
-    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-    fontWeight: '600',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-  },
-  loading: {
-    textAlign: 'center',
-    padding: '3rem 1rem',
-    color: 'var(--text-secondary)',
-    fontSize: 'clamp(1rem, 3vw, 1.125rem)',
-  },
-  tableWrapper: {
-    width: '100%',
-    overflowX: 'auto',
-  },
-  tableContainer: {
-    background: 'var(--bg-card)',
-    borderRadius: '1rem',
-    boxShadow: 'var(--shadow-md)',
-    overflow: 'hidden',
-    minWidth: '100%',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    minWidth: '700px',
-  },
-  th: {
-    padding: 'clamp(0.75rem, 2vw, 1rem)',
-    textAlign: 'left',
-    background: 'var(--bg-hover)',
-    fontWeight: '600',
-    color: 'var(--text-primary)',
-    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
-    whiteSpace: 'nowrap',
-  },
-  tr: {
-    borderTop: '1px solid var(--border-color)',
-    transition: 'background 0.2s',
-  },
-  td: {
-    padding: 'clamp(0.75rem, 2vw, 1rem)',
-    color: 'var(--text-secondary)',
-    fontSize: 'clamp(0.8rem, 2vw, 0.95rem)',
-  },
-  tdActions: {
-    padding: 'clamp(0.75rem, 2vw, 1rem)',
-    whiteSpace: 'nowrap',
-  },
-  empty: {
-    textAlign: 'center',
-    padding: '3rem 1rem',
-    color: 'var(--text-secondary)',
-    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-  },
-  btnEdit: {
-    padding: '0.4rem 1rem',
-    background: 'var(--primary-color)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.375rem',
-    marginRight: '0.5rem',
-    cursor: 'pointer',
-    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
-    whiteSpace: 'nowrap',
-  },
-  btnDelete: {
-    padding: '0.4rem 1rem',
-    background: 'var(--error-color)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.375rem',
-    cursor: 'pointer',
-    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
-    whiteSpace: 'nowrap',
-  },
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    background: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-    padding: '1rem',
-  },
-  modal: {
-    background: 'var(--bg-card)',
-    padding: 'clamp(1.5rem, 4vw, 2rem)',
-    borderRadius: '1rem',
-    width: '100%',
-    maxWidth: '500px',
-    maxHeight: '90vh',
-    overflowY: 'auto',
-  },
-  modalTitle: {
-    marginBottom: '1.5rem',
-    color: 'var(--primary-dark)',
-    fontSize: 'clamp(1.25rem, 4vw, 1.5rem)',
-    margin: '0 0 1.5rem 0',
-  },
-  form: {
-    width: '100%',
-  },
-  input: {
-    width: '100%',
-    padding: 'clamp(0.625rem, 2vw, 0.75rem)',
-    border: '2px solid var(--border-color)',
-    borderRadius: '0.5rem',
-    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-    boxSizing: 'border-box',
-    background: 'var(--input-bg)',
-    color: 'var(--text-primary)',
-  },
-  inputGroup: {
-    marginBottom: '1rem',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  errorText: {
-    color: 'var(--error-color)',
-    fontSize: '0.85rem',
-    marginTop: '0.25rem',
-  },
-  modalActions: {
-    display: 'flex',
-    gap: '1rem',
-    marginTop: '1.5rem',
-    flexWrap: 'wrap',
-  },
-  btnCancel: {
-    flex: 1,
-    minWidth: '120px',
-    padding: 'clamp(0.625rem, 2vw, 0.75rem)',
-    background: 'var(--bg-hover)',
-    color: 'var(--text-secondary)',
-    border: 'none',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-    fontWeight: '500',
-  },
-  btnSubmit: {
-    flex: 1,
-    minWidth: '120px',
-    padding: 'clamp(0.625rem, 2vw, 0.75rem)',
-    background: 'linear-gradient(135deg, #0A4D68, #088395)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-    fontWeight: '600',
-  },
-};
 
 export default Pacientes;

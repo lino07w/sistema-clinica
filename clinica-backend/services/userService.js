@@ -1,5 +1,6 @@
 import { Op } from 'sequelize';
 import db from '../models/index.js';
+import { ApiError } from '../middleware/errorHandler.js';
 const { User, Paciente, sequelize } = db;
 
 class UserService {
@@ -22,19 +23,19 @@ class UserService {
         const user = await User.findByPk(id, {
             attributes: { exclude: ['password'] }
         });
-        if (!user) throw new Error('Usuario no encontrado');
+        if (!user) throw ApiError.notFound('Usuario no encontrado');
         return user;
     }
 
     async create(userData) {
         // Verificar email duplicado
         const existingEmail = await User.findOne({ where: { email: userData.email } });
-        if (existingEmail) throw new Error('El email ya está registrado');
+        if (existingEmail) throw ApiError.conflict('El email ya está registrado');
 
         // Verificar username duplicado si se proporciona
         if (userData.username) {
             const existingUsername = await User.findOne({ where: { username: userData.username } });
-            if (existingUsername) throw new Error('El username ya está en uso');
+            if (existingUsername) throw ApiError.conflict('El username ya está en uso');
         }
         // Crear usuario (y ficha de paciente si aplica) dentro de una transacción
         const t = await sequelize.transaction();
@@ -73,7 +74,7 @@ class UserService {
 
     async update(id, userData) {
         const user = await User.findByPk(id);
-        if (!user) throw new Error('Usuario no encontrado');
+        if (!user) throw ApiError.notFound('Usuario no encontrado');
 
         // Verificar email duplicado al actualizar
         if (userData.email && userData.email !== user.email) {
@@ -83,7 +84,7 @@ class UserService {
                     id: { [Op.ne]: id }
                 }
             });
-            if (existingEmail) throw new Error('El email ya está en uso');
+            if (existingEmail) throw ApiError.conflict('El email ya está en uso');
         }
 
         return await user.update(userData);
@@ -91,13 +92,13 @@ class UserService {
 
     async delete(id) {
         const user = await User.findByPk(id);
-        if (!user) throw new Error('Usuario no encontrado');
+        if (!user) throw ApiError.notFound('Usuario no encontrado');
 
         // No permitir eliminar al único admin
         if (user.rol === 'administrador') {
             const adminCount = await User.count({ where: { rol: 'administrador' } });
             if (adminCount === 1) {
-                throw new Error('No se puede eliminar al único administrador del sistema');
+                throw ApiError.conflict('No se puede eliminar al único administrador del sistema');
             }
         }
 
@@ -107,9 +108,9 @@ class UserService {
 
     async aprobar(id) {
         const user = await User.findByPk(id);
-        if (!user) throw new Error('Usuario no encontrado');
+        if (!user) throw ApiError.notFound('Usuario no encontrado');
         if (user.estado !== 'pendiente') {
-            throw new Error('El usuario no está pendiente de aprobación');
+            throw ApiError.badRequest('El usuario no está pendiente de aprobación');
         }
 
         return await user.update({ estado: 'activo' });
@@ -117,9 +118,9 @@ class UserService {
 
     async rechazar(id, motivo) {
         const user = await User.findByPk(id);
-        if (!user) throw new Error('Usuario no encontrado');
+        if (!user) throw ApiError.notFound('Usuario no encontrado');
         if (user.estado !== 'pendiente') {
-            throw new Error('El usuario no está pendiente de aprobación');
+            throw ApiError.badRequest('El usuario no está pendiente de aprobación');
         }
 
         return await user.update({
@@ -130,11 +131,11 @@ class UserService {
 
     async cambiarEstado(id, estado) {
         if (!['activo', 'inactivo'].includes(estado)) {
-            throw new Error('Estado inválido. Use: activo o inactivo');
+            throw ApiError.badRequest('Estado inválido. Use: activo o inactivo');
         }
 
         const user = await User.findByPk(id);
-        if (!user) throw new Error('Usuario no encontrado');
+        if (!user) throw ApiError.notFound('Usuario no encontrado');
 
         return await user.update({ estado });
     }

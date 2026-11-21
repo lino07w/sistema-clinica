@@ -1,13 +1,23 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // ⬇️ AÑADE ESTE BLOQUE ⬇️
   server: {
-    port: 5173,       // Fija el puerto a 5173
-    strictPort: true, // Obliga a usar este puerto y falla si está ocupado
+    port: 5173,
+    strictPort: true,
   },
-  // ⬆️ FIN DEL BLOQUE ⬆️
-})
+  build: {
+    rollupOptions: {
+      output: {
+        // Separar librerías grandes en chunks propios para un mejor cacheo
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          charts: ['chart.js', 'react-chartjs-2'],
+          forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
+        },
+      },
+    },
+  },
+});

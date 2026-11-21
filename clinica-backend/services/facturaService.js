@@ -1,4 +1,5 @@
 import db from '../models/index.js';
+import { ApiError } from '../middleware/errorHandler.js';
 const { Factura, Paciente } = db;
 
 class FacturaService {
@@ -18,7 +19,7 @@ class FacturaService {
                 { model: Paciente, as: 'paciente', required: false }
             ]
         });
-        if (!factura) throw new Error('Factura no encontrada');
+        if (!factura) throw ApiError.notFound('Factura no encontrada');
         return factura;
     }
 
@@ -40,14 +41,14 @@ class FacturaService {
 
     async update(id, facturaData) {
         const factura = await Factura.findByPk(id);
-        if (!factura) throw new Error('Factura no encontrada');
+        if (!factura) throw ApiError.notFound('Factura no encontrada');
 
         return await factura.update(facturaData);
     }
 
     async delete(id) {
         const factura = await Factura.findByPk(id);
-        if (!factura) throw new Error('Factura no encontrada');
+        if (!factura) throw ApiError.notFound('Factura no encontrada');
 
         await factura.destroy();
         return true;

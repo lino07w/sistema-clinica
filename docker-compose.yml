@@ -1,7 +1,7 @@
 services:
   db:
-    image: postgres:15-alpine
-    restart: always
+    image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -18,22 +18,29 @@ services:
 
   backend:
     build: ./clinica-backend
+    restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"
-    env_file: .env
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - JWT_SECRET=${JWT_SECRET}
-      - NODE_ENV=${NODE_ENV:-production}
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      DB_SSL: "false"
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env}
+      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:?Define DEFAULT_ADMIN_PASSWORD en .env}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
     depends_on:
       db:
         condition: service_healthy
 
   frontend:
-    build: ./clinica-react
+    build:
+      context: ./clinica-react
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+    restart: unless-stopped
     ports:
       - "80:80"
-    env_file: .env
     depends_on:
       - backend
 

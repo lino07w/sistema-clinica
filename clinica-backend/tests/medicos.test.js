@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { app, sequelize } from '../server.js';
+import { app, sequelize } from './helpers.js';
 
 describe('Medicos Endpoints', () => {
     let token;

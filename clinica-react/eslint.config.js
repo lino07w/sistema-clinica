@@ -24,6 +24,11 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // Los contextos exportan su Provider junto a su hook de acceso (patrón habitual).
+      'react-refresh/only-export-components': [
+        'error',
+        { allowConstantExport: true, allowExportNames: ['useAuth', 'useTheme', 'useToast'] },
+      ],
     },
   },
 ])

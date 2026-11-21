@@ -3,9 +3,9 @@
  */
 
 import facturaService from '../services/facturaService.js';
-import { logAction } from '../utils/auditLogger.js';
-import { successResponse, errorResponse } from '../utils/response.js';
-import { asyncHandler } from '../middleware/errorHandler.js';
+import { logUserAction } from '../utils/auditLogger.js';
+import { successResponse } from '../utils/response.js';
+import { ApiError, asyncHandler } from '../middleware/errorHandler.js';
 
 class FacturaController {
     // GET /api/facturas
@@ -25,7 +25,7 @@ class FacturaController {
         const { pacienteId, monto, concepto, fecha } = req.body;
 
         if (!pacienteId || !monto) {
-            return errorResponse(res, 'Paciente ID y Monto son requeridos', 400);
+            throw ApiError.badRequest('Paciente ID y Monto son requeridos');
         }
 
         const factura = await facturaService.create({
@@ -36,9 +36,7 @@ class FacturaController {
             estado: 'pendiente'
         });
 
-        const userId = req.user ? req.user.id : 'unknown';
-        const userName = req.user ? (req.user.nombre || req.user.username) : 'Unknown';
-        logAction(userId, userName, 'CREATE', 'FACTURA', `Factura creada: $${factura.monto}`);
+        logUserAction(req, 'CREATE', 'FACTURA', `Factura creada: $${factura.monto}`);
 
         successResponse(res, factura, 'Factura creada exitosamente', 201);
     });
@@ -46,18 +44,14 @@ class FacturaController {
     // PUT /api/facturas/:id
     update = asyncHandler(async (req, res) => {
         const factura = await facturaService.update(req.params.id, req.body);
-        const userId = req.user ? req.user.id : 'unknown';
-        const userName = req.user ? (req.user.nombre || req.user.username) : 'Unknown';
-        logAction(userId, userName, 'UPDATE', 'FACTURA', `Factura actualizada: ID ${req.params.id}`);
+        logUserAction(req, 'UPDATE', 'FACTURA', `Factura actualizada: ID ${req.params.id}`);
         successResponse(res, factura, 'Factura actualizada exitosamente');
     });
 
     // DELETE /api/facturas/:id
     delete = asyncHandler(async (req, res) => {
         await facturaService.delete(req.params.id);
-        const userId = req.user ? req.user.id : 'unknown';
-        const userName = req.user ? (req.user.nombre || req.user.username) : 'Unknown';
-        logAction(userId, userName, 'DELETE', 'FACTURA', `Factura eliminada: ID ${req.params.id}`);
+        logUserAction(req, 'DELETE', 'FACTURA', `Factura eliminada: ID ${req.params.id}`);
         successResponse(res, null, 'Factura eliminada exitosamente');
     });
 

@@ -6,37 +6,42 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
+    "lint": "eslint .",
+    "db:init": "node scripts/initDatabase.js",
+    "seed": "node scripts/seedDemoData.js",
     "pretest": "cross-env NODE_ENV=test node scripts/initDatabase.js",
-    "test": "cross-env NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
-    "seed": "node scripts/seedDemoData.js"
+    "test": "cross-env NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest --runInBand"
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
-  "description": "",
+  "description": "API REST para gestión de clínicas (Express + Sequelize + PostgreSQL)",
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
-    "crypto-js": "^4.2.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
     "express-validator": "^7.3.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
-    "morgan": "^1.10.1",
     "nodemailer": "^7.0.11",
     "pg": "^8.16.3",
     "sequelize": "^6.37.7",
-    "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
     "cross-env": "^10.1.0",
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0",
     "jest": "^30.2.0",
     "nodemon": "^3.1.11",
     "sequelize-cli": "^6.6.3",
     "supertest": "^7.1.4"
+  },
+  "engines": {
+    "node": "22.x"
   }
 }

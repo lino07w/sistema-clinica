@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tarjeta</title>
+<style>
+  @font-face { font-family: 'Plex'; font-weight: 400; src: url('../../../../clinica-react/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2'); }
+  @font-face { font-family: 'Plex'; font-weight: 500; src: url('../../../../clinica-react/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-500-normal.woff2'); }
+  @font-face { font-family: 'Plex'; font-weight: 600; src: url('../../../../clinica-react/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-normal.woff2'); }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; }
+  body {
+    font-family: 'Plex', sans-serif;
+    background: #0b5563;
+    color: #ffffff;
+    overflow: hidden;
+    display: grid;
+  }
+  .card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 7vh 7vw;
+  }
+  .brand { display: flex; align-items: center; gap: 0.6em; font-size: 2.6vmin; font-weight: 600; }
+  .mark { display: grid; place-items: center; width: 1.7em; height: 1.7em; border-radius: 0.3em; background: #fff; color: #0b5563; }
+  .hours { list-style: none; position: absolute; inset: 20% 7vw 46% 7vw; display: flex; flex-direction: column; justify-content: space-between; }
+  .hours li { display: flex; align-items: center; gap: 1.2em; font-size: 1.5vmin; color: rgb(227 240 241 / 0.5); font-variant-numeric: tabular-nums; }
+  .hours li::after { content: ''; flex: 1; border-top: 1px solid rgb(227 240 241 / 0.16); transform-origin: left; transform: scaleX(0); animation: draw 900ms cubic-bezier(.2,.7,.2,1) forwards; animation-delay: calc(var(--i) * 60ms); }
+  .now { position: absolute; left: 7vw; right: 7vw; top: 34.5%; border-top: 3px solid #fff; opacity: 0; animation: fade 400ms ease-out 900ms forwards; }
+  .now span { position: absolute; top: -0.9em; right: 0; padding: 0.1em 0.45em; border-radius: 0.25em; background: #fff; color: #0b5563; font-size: 1.6vmin; font-weight: 600; }
+  .text { position: relative; z-index: 1; opacity: 0; transform: translateY(12px); animation: rise 700ms cubic-bezier(.2,.7,.2,1) 500ms forwards; }
+  h1 { font-size: 6.4vmin; font-weight: 600; line-height: 1.08; letter-spacing: -0.02em; max-width: 16ch; }
+  p { margin-top: 0.8em; font-size: 2.7vmin; line-height: 1.4; color: #d5e9eb; max-width: 30ch; }
+  .url { display: inline-block; margin-top: 1.2em; padding: 0.5em 0.9em; border-radius: 0.35em; background: #fff; color: #0b5563; font-size: 2.6vmin; font-weight: 600; }
+  .stack { margin-top: 1.1em; font-size: 2vmin; color: #b9dadd; }
+
+  /* Vertical: más espacio para el texto */
+  @media (max-aspect-ratio: 1/1) {
+    .card { padding: 6vh 8vw 9vh; }
+    .brand { font-size: 3.6vmin; }
+    h1 { font-size: 9.6vmin; }
+    p { font-size: 4.2vmin; }
+    .url { font-size: 3.9vmin; }
+    .stack { font-size: 3.2vmin; }
+    .hours { inset: 13% 8vw 52% 8vw; }
+    .hours li { font-size: 2.4vmin; }
+    .now { top: 26%; left: 8vw; right: 8vw; }
+    .now span { font-size: 2.6vmin; }
+  }
+
+  @keyframes draw { to { transform: scaleX(1); } }
+  @keyframes fade { to { opacity: 1; } }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand"><span class="mark">
+      <svg width="60%" height="60%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2a2 2 0 0 0-2 2v5H4a2 2 0 0 0-2 2v2c0 1.1.9 2 2 2h5v5c0 1.1.9 2 2 2h2a2 2 0 0 0 2-2v-5h5a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2h-5V4a2 2 0 0 0-2-2h-2z"/></svg>
+    </span>Clínica</div>
+    <ol class="hours" id="hours"></ol>
+    <div class="now"><span>10:40</span></div>
+    <div class="text" id="text"></div>
+  </div>
+<script>
+  const params = new URLSearchParams(location.search);
+  const hours = document.getElementById('hours');
+  ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00'].forEach((h, i) => {
+    const li = document.createElement('li'); li.textContent = h; li.style.setProperty('--i', i); hours.appendChild(li);
+  });
+  // La marca "ahora" (10:40) se sitúa a 2/3 del tramo entre las 10:00 y las 11:00
+  const placeNow = () => {
+    const items = hours.querySelectorAll('li');
+    const card = document.querySelector('.card').getBoundingClientRect();
+    const mid = (li) => { const r = li.getBoundingClientRect(); return r.top + r.height / 2 - card.top; };
+    const y = mid(items[2]) + (mid(items[3]) - mid(items[2])) * (40 / 60);
+    const now = document.querySelector('.now');
+    now.style.top = `${y}px`;
+    // Empieza donde empiezan las líneas horarias, sin tachar las etiquetas
+    const range = document.createRange();
+    range.selectNodeContents(items[3].firstChild);
+    const labelRight = range.getBoundingClientRect().right;
+    const gap = parseFloat(getComputedStyle(items[3]).columnGap) || 0;
+    now.style.left = `${labelRight + gap - card.left}px`;
+  };
+  placeNow();
+  document.fonts.ready.then(placeNow);
+  const text = document.getElementById('text');
+  if (params.get('kind') === 'outro') {
+    text.innerHTML = `
+      <h1>Pruébalo en vivo</h1>
+      <p>Entra con una cuenta de demostración y recorre la clínica completa.</p>
+      <span class="url">sistema-clinica-blue.vercel.app</span>
+      <div class="stack">Hecho con React, Node.js, Express y PostgreSQL</div>`;
+    document.querySelector('.now').style.display = 'none';
+  } else {
+    text.innerHTML = `
+      <h1>La agenda de tu clínica, por fin ordenada</h1>
+      <p>Citas, pacientes, historial y facturación en una sola aplicación.</p>`;
+  }
+</script>
+</body>
+</html>

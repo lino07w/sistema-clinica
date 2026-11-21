@@ -1,225 +1,135 @@
-import React, { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import ContentWrapper from '../components/ContentWrapper';
-import { auditAPI } from '../services/api';
+import SearchBar from '../components/SearchBar';
 import Spinner from '../components/Spinner';
+import { auditAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import '../styles/Page.css';
 
-const Auditoria = () => {
-    const [logs, setLogs] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    const { addToast } = useToast();
-
-    useEffect(() => {
-        fetchLogs();
-    }, []);
-
-    const fetchLogs = async () => {
-        try {
-            setLoading(true);
-            const response = await auditAPI.getAll();
-            setLogs(response.data.data);
-        } catch (error) {
-            console.error('Error fetching audit logs:', error);
-            addToast('Error al cargar logs de auditoría', 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const getActionColor = (action) => {
-        switch (action.toUpperCase()) {
-            case 'LOGIN': return '#088395';
-            case 'CREATE': return '#22C55E';
-            case 'UPDATE': return '#F59E0B';
-            case 'DELETE': return '#DC2626';
-            case 'REGISTER': return '#6366F1';
-            default: return '#64748B';
-        }
-    };
-
-    const filteredLogs = logs.filter(log =>
-        log.usuarioNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.accion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.entidad.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.detalles.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    return (
-        <div style={styles.container}>
-            <Navbar />
-            <ContentWrapper>
-                <div style={styles.content}>
-                    <div style={styles.header}>
-                        <h1 style={styles.title}>Auditoría del Sistema</h1>
-                        <p style={styles.subtitle}>Registro de acciones y eventos de seguridad</p>
-                    </div>
-
-                    <div style={styles.card}>
-                        <div style={styles.filterSection}>
-                            <input
-                                type="text"
-                                placeholder="Buscar por usuario, acción, entidad..."
-                                style={styles.searchInput}
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                            <button style={styles.refreshButton} onClick={fetchLogs}>
-                                Actualizar
-                            </button>
-                        </div>
-
-                        {loading ? (
-                            <Spinner />
-                        ) : (
-                            <div style={styles.tableWrapper}>
-                                <table style={styles.table}>
-                                    <thead>
-                                        <tr>
-                                            <th style={styles.th}>Fecha y Hora</th>
-                                            <th style={styles.th}>Usuario</th>
-                                            <th style={styles.th}>Acción</th>
-                                            <th style={styles.th}>Entidad</th>
-                                            <th style={styles.th}>Detalles</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredLogs.length > 0 ? (
-                                            filteredLogs.map(log => (
-                                                <tr key={log.id} style={styles.tr}>
-                                                    <td style={styles.td}>
-                                                        {new Date(log.timestamp).toLocaleString()}
-                                                    </td>
-                                                    <td style={styles.td}>
-                                                        <strong>{log.usuarioNombre}</strong>
-                                                        <div style={styles.userId}>{log.usuarioId}</div>
-                                                    </td>
-                                                    <td style={styles.td}>
-                                                        <span style={{
-                                                            ...styles.badge,
-                                                            backgroundColor: getActionColor(log.accion)
-                                                        }}>
-                                                            {log.accion}
-                                                        </span>
-                                                    </td>
-                                                    <td style={styles.td}>{log.entidad}</td>
-                                                    <td style={styles.td}>{log.detalles}</td>
-                                                </tr>
-                                            ))
-                                        ) : (
-                                            <tr>
-                                                <td colSpan="5" style={styles.empty}>No se encontraron registros</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </ContentWrapper>
-        </div>
-    );
+/** Los códigos internos del backend se muestran como acciones legibles. */
+const ACTION_LABELS = {
+  LOGIN: 'Inicio de sesión',
+  REGISTER: 'Solicitud de acceso',
+  RESET_PASSWORD: 'Cambio de contraseña',
+  CREATE: 'Creación',
+  UPDATE: 'Edición',
+  DELETE: 'Eliminación',
+  APPROVE: 'Aprobación',
+  REJECT: 'Rechazo',
+  CHANGE_STATUS: 'Cambio de estado',
 };
 
-const styles = {
-    container: {
-        minHeight: '100vh',
-        backgroundColor: '#F8FAFC',
-    },
-    content: {
-        padding: '2rem',
-    },
-    header: {
-        marginBottom: '2rem',
-    },
-    title: {
-        fontSize: '1.875rem',
-        fontWeight: '700',
-        color: '#0A4D68',
-        margin: 0,
-    },
-    subtitle: {
-        color: '#64748B',
-        marginTop: '0.25rem',
-    },
-    card: {
-        backgroundColor: 'white',
-        borderRadius: '1rem',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        overflow: 'hidden',
-    },
-    filterSection: {
-        padding: '1.5rem',
-        borderBottom: '1px solid #E2E8F0',
-        display: 'flex',
-        gap: '1rem',
-        flexWrap: 'wrap',
-    },
-    searchInput: {
-        flex: 1,
-        minWidth: '300px',
-        padding: '0.75rem 1rem',
-        borderRadius: '0.5rem',
-        border: '1px solid #E2E8F0',
-        fontSize: '0.875rem',
-    },
-    refreshButton: {
-        padding: '0.75rem 1.5rem',
-        backgroundColor: '#0A4D68',
-        color: 'white',
-        border: 'none',
-        borderRadius: '0.5rem',
-        fontWeight: '600',
-        cursor: 'pointer',
-    },
-    tableWrapper: {
-        overflowX: 'auto',
-    },
-    table: {
-        width: '100%',
-        borderCollapse: 'collapse',
-        textAlign: 'left',
-    },
-    th: {
-        padding: '1rem 1.5rem',
-        backgroundColor: '#F8FAFC',
-        color: '#475569',
-        fontSize: '0.75rem',
-        textTransform: 'uppercase',
-        letterSpacing: '0.05em',
-        fontWeight: '700',
-    },
-    td: {
-        padding: '1rem 1.5rem',
-        borderBottom: '1px solid #E2E8F0',
-        fontSize: '0.875rem',
-        color: '#1E293B',
-    },
-    tr: {
-        transition: 'background-color 0.2s',
-        ':hover': {
-            backgroundColor: '#F1F5F9',
-        }
-    },
-    badge: {
-        padding: '0.25rem 0.625rem',
-        borderRadius: '9999px',
-        color: 'white',
-        fontSize: '0.75rem',
-        fontWeight: '600',
-    },
-    userId: {
-        fontSize: '0.7rem',
-        color: '#94A3B8',
-        marginTop: '0.2rem',
-    },
-    empty: {
-        padding: '3rem',
-        textAlign: 'center',
-        color: '#94A3B8',
+const ENTITY_LABELS = {
+  AUTH: 'Acceso',
+  USER: 'Usuario',
+  PACIENTE: 'Paciente',
+  MEDICO: 'Médico',
+  CITA: 'Cita',
+  FACTURA: 'Factura',
+  HISTORIAL: 'Historial',
+};
+
+const dateTimeFormatter = new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeStyle: 'short' });
+
+const Auditoria = () => {
+  const { addToast } = useToast();
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const fetchLogs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await auditAPI.getAll();
+      setLogs(response.data?.data ?? []);
+    } catch (error) {
+      console.error('Error cargando auditoría:', error);
+      addToast('No se pudo cargar el registro de auditoría.', 'error');
+    } finally {
+      setLoading(false);
     }
+  }, [addToast]);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
+
+  const filteredLogs = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return logs;
+    return logs.filter((log) =>
+      [log.usuarioNombre, ACTION_LABELS[log.accion] ?? log.accion, ENTITY_LABELS[log.entidad] ?? log.entidad, log.detalles]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(term))
+    );
+  }, [logs, searchTerm]);
+
+  return (
+    <>
+      <Navbar />
+      <ContentWrapper>
+        <main className="page">
+          <div className="page-header">
+            <div>
+              <h1 className="page-title">Auditoría</h1>
+              <p className="page-subtitle">Quién hizo qué y cuándo. Se muestran las últimas 1000 acciones.</p>
+            </div>
+          </div>
+
+          <div className="page-toolbar">
+            <SearchBar
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="Buscar por persona, acción o detalle"
+            />
+            <button type="button" className="btn btn-secondary" onClick={fetchLogs} disabled={loading}>
+              <RefreshCw size={16} aria-hidden="true" />
+              Actualizar
+            </button>
+          </div>
+
+          {loading ? (
+            <Spinner />
+          ) : (
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Persona</th>
+                    <th>Acción</th>
+                    <th>Sobre</th>
+                    <th>Detalle</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="table-empty">
+                        {searchTerm ? 'Ninguna acción coincide con la búsqueda.' : 'Todavía no hay acciones registradas.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredLogs.map((log) => (
+                      <tr key={log.id}>
+                        <td className="tabular cell-nowrap">{dateTimeFormatter.format(new Date(log.timestamp))}</td>
+                        <td data-label="Persona">{log.usuarioNombre}</td>
+                        <td data-label="Acción">{ACTION_LABELS[log.accion] ?? log.accion}</td>
+                        <td data-label="Sobre">{ENTITY_LABELS[log.entidad] ?? log.entidad}</td>
+                        <td data-label="Detalle" className="cell-soft">{log.detalles}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </main>
+      </ContentWrapper>
+    </>
+  );
 };
 
 export default Auditoria;

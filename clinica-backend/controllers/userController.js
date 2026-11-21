@@ -1,12 +1,12 @@
 import { Op } from 'sequelize';
 import userService from '../services/userService.js';
-import { logAction } from '../utils/auditLogger.js';
-import { successResponse, errorResponse, notFoundResponse } from '../utils/response.js';
+import { logUserAction } from '../utils/auditLogger.js';
+import { successResponse } from '../utils/response.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { v4 as uuidv4 } from 'uuid';
 import db from '../models/index.js';
 
-const { User, Medico } = db;
+const { Medico } = db;
 
 class UserController {
   /**
@@ -39,9 +39,7 @@ class UserController {
   create = asyncHandler(async (req, res) => {
     const user = await userService.create(req.body);
 
-    const userId = req.user ? req.user.id : 'unknown';
-    const userName = req.user ? (req.user.nombre || req.user.username) : 'Unknown';
-    logAction(userId, userName, 'CREATE', 'USER', `Usuario creado: ${user.nombre}`);
+    logUserAction(req, 'CREATE', 'USER', `Usuario creado: ${user.nombre}`);
 
     successResponse(res, user.toJSON(), 'Usuario creado correctamente', 201);
   });
@@ -52,9 +50,7 @@ class UserController {
   update = asyncHandler(async (req, res) => {
     const user = await userService.update(req.params.id, req.body);
 
-    const userId = req.user ? req.user.id : 'unknown';
-    const userName = req.user ? (req.user.nombre || req.user.username) : 'Unknown';
-    logAction(userId, userName, 'UPDATE', 'USER', `Usuario actualizado: ${user.nombre}`);
+    logUserAction(req, 'UPDATE', 'USER', `Usuario actualizado: ${user.nombre}`);
 
     successResponse(res, user.toJSON(), 'Usuario actualizado correctamente');
   });
@@ -65,9 +61,7 @@ class UserController {
   deleteUser = asyncHandler(async (req, res) => {
     await userService.delete(req.params.id);
 
-    const userId = req.user ? req.user.id : 'unknown';
-    const userName = req.user ? (req.user.nombre || req.user.username) : 'Unknown';
-    logAction(userId, userName, 'DELETE', 'USER', `Usuario eliminado: ID ${req.params.id}`);
+    logUserAction(req, 'DELETE', 'USER', `Usuario eliminado: ID ${req.params.id}`);
 
     successResponse(res, null, 'Usuario eliminado correctamente');
   });
@@ -106,9 +100,7 @@ class UserController {
       }
     }
 
-    const userId = req.user ? req.user.id : 'unknown';
-    const userName = req.user ? (req.user.nombre || req.user.username) : 'Unknown';
-    logAction(userId, userName, 'APPROVE', 'USER', `Usuario aprobado: ${user.nombre}`);
+    logUserAction(req, 'APPROVE', 'USER', `Usuario aprobado: ${user.nombre}`);
 
     successResponse(res, user.toJSON(), 'Usuario aprobado correctamente');
   });
@@ -120,9 +112,7 @@ class UserController {
     const { motivo } = req.body;
     const user = await userService.rechazar(req.params.id, motivo);
 
-    const userId = req.user ? req.user.id : 'unknown';
-    const userName = req.user ? (req.user.nombre || req.user.username) : 'Unknown';
-    logAction(userId, userName, 'REJECT', 'USER', `Usuario rechazado: ${user.nombre}`);
+    logUserAction(req, 'REJECT', 'USER', `Usuario rechazado: ${user.nombre}`);
 
     successResponse(res, user.toJSON(), 'Usuario rechazado correctamente');
   });
@@ -134,9 +124,7 @@ class UserController {
     const { estado } = req.body;
     const user = await userService.cambiarEstado(req.params.id, estado);
 
-    const userId = req.user ? req.user.id : 'unknown';
-    const userName = req.user ? (req.user.nombre || req.user.username) : 'Unknown';
-    logAction(userId, userName, 'CHANGE_STATUS', 'USER', `Estado cambiado: ${user.nombre} - ${estado}`);
+    logUserAction(req, 'CHANGE_STATUS', 'USER', `Estado cambiado: ${user.nombre} - ${estado}`);
 
     successResponse(res, user.toJSON(), `Usuario ${estado === 'activo' ? 'activado' : 'desactivado'} correctamente`);
   });

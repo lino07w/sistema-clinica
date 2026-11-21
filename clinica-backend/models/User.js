@@ -106,4 +106,13 @@ User.prototype.comparePassword = async function (candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
 };
 
+/** Campos que nunca deben salir en una respuesta HTTP. */
+const SENSITIVE_FIELDS = ['password', 'resetPasswordToken', 'resetPasswordExpires'];
+
+User.prototype.toJSON = function () {
+    const values = { ...this.get() };
+    SENSITIVE_FIELDS.forEach((field) => delete values[field]);
+    return values;
+};
+
 export default User;

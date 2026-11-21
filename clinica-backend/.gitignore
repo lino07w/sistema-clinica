@@ -9,13 +9,8 @@ yarn-error.log*
 .env.local
 .env.production
 
-# Data files (JSON storage)
-data/*.json
-!data/.gitkeep
-!data/facturas.json
-!data/configuracion.json
-!data/historial.json
-!data/audit_logs.json
+# Vercel
+.vercel
 
 # Logs
 logs/

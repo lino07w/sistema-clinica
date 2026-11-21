@@ -1,352 +1,162 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { Link, useNavigate } from 'react-router-dom';
+import { ClipboardList, Stethoscope } from 'lucide-react';
+import { authAPI } from '../services/api';
+import AuthLayout from '../components/AuthLayout';
+
+const MIN_PASSWORD = 6;
+
+const INITIAL_FORM = {
+  nombre: '',
+  email: '',
+  telefono: '',
+  password: '',
+  confirmPassword: '',
+  especialidad: '',
+  matricula: '',
+};
+
+const ROLES = [
+  { value: 'medico', label: 'Médico', icon: Stethoscope },
+  { value: 'recepcionista', label: 'Recepción', icon: ClipboardList },
+];
+
+/** Campo de formulario con etiqueta asociada. */
+const Field = ({ id, label, ...inputProps }) => (
+  <div className="field">
+    <label className="field-label" htmlFor={id}>{label}</label>
+    <input id={id} name={id} className="field-input" {...inputProps} />
+  </div>
+);
 
 const Register = () => {
   const navigate = useNavigate();
   const [rol, setRol] = useState('medico');
-  const [formData, setFormData] = useState({
-    nombre: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    // Médico
-    especialidad: '',
-    matricula: '',
-    // Común
-    telefono: '',
-  });
+  const [form, setForm] = useState(INITIAL_FORM);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setForm((current) => ({ ...current, [e.target.name]: e.target.value }));
     setError('');
+  };
+
+  const validate = () => {
+    if (form.password.length < MIN_PASSWORD) {
+      return `La contraseña debe tener al menos ${MIN_PASSWORD} caracteres.`;
+    }
+    if (form.password !== form.confirmPassword) return 'Las contraseñas no coinciden.';
+    if (rol === 'medico' && (!form.especialidad.trim() || !form.matricula.trim())) {
+      return 'Indica tu especialidad y tu número de colegiatura.';
+    }
+    return '';
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-
-    // Validaciones
-    if (formData.password !== formData.confirmPassword) {
-      setError('Las contraseñas no coinciden');
+    const validationError = validate();
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres');
-      return;
-    }
-
-    setLoading(true);
-
+    setSubmitting(true);
     try {
-      const dataToSend = {
-        nombre: formData.nombre,
-        email: formData.email,
-        password: formData.password,
+      const { nombre, email, password, telefono, especialidad, matricula } = form;
+      await authAPI.register({
+        nombre,
+        email,
+        password,
+        telefono,
         rol,
-        telefono: formData.telefono,
-      };
-
-      // Agregar campos según el rol
-      if (rol === 'medico') {
-        if (!formData.especialidad || !formData.matricula) {
-          setError('Especialidad y Matrícula son requeridos para médicos');
-          setLoading(false);
-          return;
-        }
-        dataToSend.especialidad = formData.especialidad;
-        dataToSend.matricula = formData.matricula;
-      }
-
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      const response = await axios.post(`${API_URL}/api/auth/register`, dataToSend);
-
-      if (response.data.success) {
-        alert(response.data.message);
-        navigate('/login');
-      }
+        ...(rol === 'medico' && { especialidad, matricula }),
+      });
+      navigate('/login', {
+        state: { notice: 'Solicitud enviada. Podrás entrar cuando un administrador la apruebe.' },
+      });
     } catch (err) {
-      setError(err.response?.data?.message || 'Error al registrarse');
+      setError(err.response?.data?.message || 'No se pudo enviar la solicitud. Inténtalo de nuevo.');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h1 style={styles.title}>Solicitar Acceso</h1>
-        <p style={styles.subtitle}>Regístrate como profesional de la clínica</p>
+    <AuthLayout
+      title="Solicitar acceso"
+      description="Para personal médico y de recepción. Un administrador revisará tu solicitud antes de activarla."
+    >
+      {error && <p className="auth-alert auth-alert-error" role="alert">{error}</p>}
 
-        {error && <div style={styles.error}>{error}</div>}
-
-        <form onSubmit={handleSubmit} style={styles.form}>
-          {/* Selector de Rol */}
-          <div style={styles.rolSelector}>
-            <button
-              type="button"
-              style={{
-                ...styles.rolButton,
-                ...(rol === 'medico' ? styles.rolButtonActive : {})
-              }}
-              onClick={() => setRol('medico')}
-            >
-              👨‍⚕️ Médico
-            </button>
-            <button
-              type="button"
-              style={{
-                ...styles.rolButton,
-                ...(rol === 'recepcionista' ? styles.rolButtonActive : {})
-              }}
-              onClick={() => setRol('recepcionista')}
-            >
-              📋 Recepcionista
-            </button>
+      <form className="auth-form" onSubmit={handleSubmit}>
+        <fieldset className="field">
+          <legend className="field-label">Tu rol</legend>
+          <div className="segmented">
+            {ROLES.map((option) => {
+              const RoleIcon = option.icon;
+              return (
+                <span key={option.value}>
+                  <input
+                    type="radio"
+                    id={`rol-${option.value}`}
+                    name="rol"
+                    value={option.value}
+                    checked={rol === option.value}
+                    onChange={() => setRol(option.value)}
+                  />
+                  <label htmlFor={`rol-${option.value}`}>
+                    <RoleIcon size={16} aria-hidden="true" />
+                    {option.label}
+                  </label>
+                </span>
+              );
+            })}
           </div>
+        </fieldset>
 
-          {/* Campos comunes */}
-          <input
-            style={styles.input}
-            type="text"
-            name="nombre"
-            placeholder="Nombre completo *"
-            value={formData.nombre}
-            onChange={handleChange}
-            required
-          />
+        <Field id="nombre" label="Nombre completo" value={form.nombre} onChange={handleChange} autoComplete="name" required />
+        <Field id="email" label="Email" type="email" value={form.email} onChange={handleChange} autoComplete="email" required />
+        <Field id="telefono" label="Teléfono" type="tel" value={form.telefono} onChange={handleChange} autoComplete="tel" required />
 
-          <input
-            style={styles.input}
-            type="email"
-            name="email"
-            placeholder="Email *"
-            value={formData.email}
-            onChange={handleChange}
-            required
-          />
+        {rol === 'medico' && (
+          <div className="field-row">
+            <Field id="especialidad" label="Especialidad" value={form.especialidad} onChange={handleChange} required />
+            <Field id="matricula" label="N.º de colegiatura (CMP)" value={form.matricula} onChange={handleChange} required />
+          </div>
+        )}
 
-          <input
-            style={styles.input}
+        <div className="field-row">
+          <Field
+            id="password"
+            label="Contraseña"
             type="password"
-            name="password"
-            placeholder="Contraseña (mínimo 6 caracteres) *"
-            value={formData.password}
+            value={form.password}
             onChange={handleChange}
+            autoComplete="new-password"
+            minLength={MIN_PASSWORD}
             required
           />
-
-          <input
-            style={styles.input}
+          <Field
+            id="confirmPassword"
+            label="Repite la contraseña"
             type="password"
-            name="confirmPassword"
-            placeholder="Confirmar contraseña *"
-            value={formData.confirmPassword}
+            value={form.confirmPassword}
             onChange={handleChange}
+            autoComplete="new-password"
             required
           />
-
-          <input
-            style={styles.input}
-            type="tel"
-            name="telefono"
-            placeholder="Teléfono *"
-            value={formData.telefono}
-            onChange={handleChange}
-            required
-          />
-
-          {/* Campos específicos para médicos */}
-          {rol === 'medico' && (
-            <>
-              <input
-                style={styles.input}
-                type="text"
-                name="especialidad"
-                placeholder="Especialidad *"
-                value={formData.especialidad}
-                onChange={handleChange}
-                required
-              />
-              <input
-                style={styles.input}
-                type="text"
-                name="matricula"
-                placeholder="Número de Matrícula *"
-                value={formData.matricula}
-                onChange={handleChange}
-                required
-              />
-            </>
-          )}
-
-          <button
-            type="submit"
-            style={styles.button}
-            disabled={loading}
-          >
-            {loading ? 'Enviando solicitud...' : 'Solicitar Acceso'}
-          </button>
-        </form>
-
-        <p style={styles.footer}>
-          ¿Ya tienes cuenta?{' '}
-          <span
-            style={styles.link}
-            onClick={() => navigate('/login')}
-          >
-            Inicia sesión aquí
-          </span>
-        </p>
-
-        <div style={styles.notice}>
-          ℹ️ Tu solicitud será revisada por un administrador antes de ser activada
         </div>
 
-        <div style={styles.infoBox}>
-          <p style={styles.infoTitle}>📌 Importante:</p>
-          <ul style={styles.infoList}>
-            <li>Solo personal médico y recepcionistas pueden registrarse</li>
-            <li>Los pacientes son registrados por el personal autorizado</li>
-            <li>Tu cuenta será activada tras la aprobación del administrador</li>
-          </ul>
-        </div>
-      </div>
-    </div>
+        <button type="submit" className="btn btn-primary auth-submit" disabled={submitting}>
+          {submitting ? 'Enviando…' : 'Enviar solicitud'}
+        </button>
+      </form>
+
+      <p className="auth-switch">
+        ¿Ya tienes cuenta? <Link to="/login">Iniciar sesión</Link>
+      </p>
+    </AuthLayout>
   );
-};
-
-const styles = {
-  container: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: 'linear-gradient(135deg, #0A4D68 0%, #088395 100%)',
-    padding: '1rem',
-  },
-  card: {
-    background: 'white',
-    padding: 'clamp(2rem, 4vw, 3rem)',
-    borderRadius: '1rem',
-    boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
-    width: '100%',
-    maxWidth: '500px',
-    maxHeight: '95vh',
-    overflowY: 'auto',
-  },
-  title: {
-    fontSize: 'clamp(1.75rem, 5vw, 2.5rem)',
-    color: '#0A4D68',
-    marginBottom: '0.5rem',
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  subtitle: {
-    color: '#64748B',
-    textAlign: 'center',
-    marginBottom: '2rem',
-    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-  },
-  error: {
-    background: '#FEE2E2',
-    color: '#DC2626',
-    padding: '0.75rem',
-    borderRadius: '0.5rem',
-    marginBottom: '1rem',
-    fontSize: 'clamp(0.875rem, 2vw, 0.95rem)',
-  },
-  form: {
-    width: '100%',
-  },
-  rolSelector: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: '0.75rem',
-    marginBottom: '1.5rem',
-  },
-  rolButton: {
-    padding: '1rem',
-    border: '2px solid #E2E8F0',
-    borderRadius: '0.5rem',
-    background: 'white',
-    cursor: 'pointer',
-    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-    fontWeight: '500',
-    transition: 'all 0.2s',
-  },
-  rolButtonActive: {
-    background: '#0A4D68',
-    color: 'white',
-    borderColor: '#0A4D68',
-  },
-  input: {
-    width: '100%',
-    padding: 'clamp(0.75rem, 2vw, 1rem)',
-    marginBottom: '1rem',
-    border: '2px solid #E2E8F0',
-    borderRadius: '0.5rem',
-    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-    boxSizing: 'border-box',
-  },
-  button: {
-    width: '100%',
-    padding: 'clamp(0.75rem, 2vw, 1rem)',
-    background: 'linear-gradient(135deg, #0A4D68, #088395)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.5rem',
-    fontSize: 'clamp(0.95rem, 2vw, 1.1rem)',
-    fontWeight: '600',
-    cursor: 'pointer',
-    marginTop: '0.5rem',
-  },
-  footer: {
-    textAlign: 'center',
-    marginTop: '1.5rem',
-    color: '#64748B',
-    fontSize: 'clamp(0.875rem, 2vw, 0.95rem)',
-  },
-  link: {
-    color: '#0A4D68',
-    fontWeight: '600',
-    cursor: 'pointer',
-  },
-  notice: {
-    marginTop: '1rem',
-    padding: '0.75rem',
-    background: '#F0F9FF',
-    color: '#0369A1',
-    borderRadius: '0.5rem',
-    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
-    textAlign: 'center',
-  },
-  infoBox: {
-    marginTop: '1rem',
-    padding: '1rem',
-    background: '#FEF3C7',
-    borderRadius: '0.5rem',
-    border: '1px solid #FCD34D',
-  },
-  infoTitle: {
-    fontSize: 'clamp(0.875rem, 2vw, 0.95rem)',
-    fontWeight: '600',
-    color: '#92400E',
-    marginBottom: '0.5rem',
-  },
-  infoList: {
-    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
-    color: '#92400E',
-    paddingLeft: '1.25rem',
-    margin: 0,
-    lineHeight: '1.8',
-  },
 };
 
 export default Register;

@@ -1,12 +1,14 @@
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// Las librerías de exportación son pesadas (~600 kB): se cargan bajo demanda
+// con import() dinámico, sólo cuando el usuario exporta algo.
 
 /**
  * Exporta datos a Excel
+ * @param {object[]} data  Filas; las claves se usan como encabezados.
+ * @param {string} fileName Nombre del archivo sin extensión.
  */
-export const exportToExcel = (data, fileName) => {
+export const exportToExcel = async (data, fileName) => {
   try {
+    const XLSX = await import('xlsx');
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Datos');
@@ -19,9 +21,17 @@ export const exportToExcel = (data, fileName) => {
 
 /**
  * Exporta datos a PDF con tabla
+ * @param {object[]} data
+ * @param {{ header: string, dataKey: string }[]} columns
+ * @param {string} title
  */
-export const exportToPDF = (data, columns, title) => {
+export const exportToPDF = async (data, columns, title = 'Reporte') => {
   try {
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
+
     // Crear documento PDF
     const doc = new jsPDF();
 
@@ -100,41 +110,4 @@ export const exportToPDF = (data, columns, title) => {
     console.error('Error completo exportando a PDF:', error);
     throw new Error(`Error al generar PDF: ${error.message}`);
   }
-};
-
-/**
- * Filtra datos por rango de fechas
- */
-export const filterByDateRange = (data, dateField, startDate, endDate) => {
-  if (!startDate && !endDate) return data;
-
-  return data.filter(item => {
-    const itemDate = new Date(item[dateField]);
-    const start = startDate ? new Date(startDate) : new Date('1900-01-01');
-    const end = endDate ? new Date(endDate) : new Date('2100-12-31');
-
-    return itemDate >= start && itemDate <= end;
-  });
-};
-
-/**
- * Formatea fecha a formato peruano
- */
-export const formatDate = (date) => {
-  if (!date) return '-';
-  return new Date(date).toLocaleDateString('es-PE');
-};
-
-/**
- * Calcula estadísticas de un campo numérico
- */
-export const calculateStats = (data, field) => {
-  const values = data.map(item => parseFloat(item[field]) || 0);
-
-  return {
-    total: values.reduce((a, b) => a + b, 0),
-    average: values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0,
-    max: Math.max(...values),
-    min: Math.min(...values),
-  };
 };

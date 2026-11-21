@@ -1,379 +1,267 @@
-import jwt from 'jsonwebtoken';
+/**
+ * Controlador de Autenticación
+ *
+ * Responsable de registro, login, verificación de token y recuperación
+ * de contraseña. Los errores se propagan al middleware central mediante
+ * `asyncHandler` + `ApiError`, por lo que nunca se filtran detalles
+ * internos al cliente.
+ */
+
+import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { Op } from 'sequelize';
-import crypto from 'crypto';
 import config from '../config/config.js';
-import { logAction } from '../utils/auditLogger.js';
-import userService from '../services/userService.js';
 import db from '../models/index.js';
+import { logAction } from '../utils/auditLogger.js';
 import { sendEmail } from '../utils/emailSender.js';
+import { generateToken, verifyToken as verifyJwt } from '../utils/jwt.js';
+import { successResponse } from '../utils/response.js';
+import { ApiError, asyncHandler } from '../middleware/errorHandler.js';
 
 const { User, Medico } = db;
 
-/**
- * Registro de nuevos usuarios (solo médicos y recepcionistas)
- */
-export const register = async (req, res) => {
-  try {
-    console.log('📝 Registro de usuario:', req.body);
+/** Roles que pueden auto-registrarse (quedan pendientes de aprobación). */
+const SELF_REGISTER_ROLES = ['medico', 'recepcionista'];
 
-    const { email, password, nombre, rol, ...otherData } = req.body;
+/** Campos opcionales que un usuario puede enviar al registrarse. */
+const SELF_REGISTER_OPTIONAL_FIELDS = ['username', 'telefono', 'especialidad', 'matricula'];
 
-    // Validar campos requeridos
-    if (!email || !password || !nombre || !rol) {
-      return res.status(400).json({
-        success: false,
-        message: 'Faltan campos requeridos: email, password, nombre, rol'
-      });
-    }
+const MIN_PASSWORD_LENGTH = 6;
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hora
 
-    // VALIDACIÓN: Solo permitir médicos y recepcionistas
-    if (!['medico', 'recepcionista'].includes(rol)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Solo se permite el registro de médicos y recepcionistas. Los pacientes son registrados por el personal autorizado.'
-      });
-    }
+/** Hash SHA-256 para no guardar tokens de recuperación en texto plano. */
+const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
-    // Verificar que no exista el email
-    const emailExists = await User.findOne({ where: { email } });
-    if (emailExists) {
-      return res.status(400).json({
-        success: false,
-        message: 'El email ya está registrado'
-      });
-    }
+/** Selecciona sólo las claves permitidas de un objeto (evita mass assignment). */
+const pick = (source, keys) =>
+  keys.reduce((acc, key) => {
+    if (source[key] !== undefined && source[key] !== '') acc[key] = source[key];
+    return acc;
+  }, {});
 
-    const newUser = await User.create({
-      id: `usr-${uuidv4()}`,
-      email,
-      password, // En producción: hashear con bcrypt
-      nombre,
-      rol,
-      loginType: 'email',
-      estado: 'pendiente', // Requiere aprobación del admin
-      fechaCreacion: new Date(),
-      ultimoAcceso: null,
-      ...otherData
-    });
+/** Representación pública del usuario (sin datos sensibles). */
+const toPublicUser = (user) => ({
+  id: user.id,
+  username: user.username,
+  email: user.email,
+  nombre: user.nombre,
+  rol: user.rol,
+  medicoId: user.medicoId,
+  pacienteId: user.pacienteId,
+  estado: user.estado
+});
 
-    console.log('✅ Usuario registrado (pendiente de aprobación):', newUser.email);
-
-    // AUDIT LOG
-    logAction(newUser.id, newUser.nombre, 'REGISTER', 'AUTH', `Usuario registrado con rol ${newUser.rol} (Pendiente)`);
-
-    res.status(201).json({
-      success: true,
-      message: 'Registro exitoso. Tu solicitud está pendiente de aprobación por un administrador.',
-      data: {
-        id: newUser.id,
-        email: newUser.email,
-        nombre: newUser.nombre,
-        rol: newUser.rol,
-        estado: newUser.estado
-      }
-    });
-  } catch (error) {
-    console.error('❌ Error en registro:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error en el servidor',
-      error: error.message
-    });
-  }
+const INACTIVE_MESSAGES = {
+  pendiente: 'Tu solicitud de registro está pendiente de aprobación por un administrador',
+  inactivo: 'Tu cuenta ha sido desactivada'
 };
 
 /**
- * Login de usuarios (username o email)
+ * Garantiza que un usuario con rol médico tenga su ficha en la tabla `medicos`
+ * y que ambos registros queden vinculados.
  */
-export const login = async (req, res) => {
-  try {
-    console.log('📨 Login request body:', req.body);
-
-    const { usernameOrEmail, password } = req.body;
-
-    // Validar que vengan los datos
-    if (!usernameOrEmail || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Usuario/Email y contraseña son requeridos'
-      });
+const ensureMedicoProfile = async (user) => {
+  const medico = await Medico.findOne({
+    where: {
+      [Op.or]: [{ email: user.email }, ...(user.medicoId ? [{ id: user.medicoId }] : [])]
     }
+  });
 
-    // Buscar usuario por email o username - FIX: Usar Op importado
-    let user = await User.findOne({
-      where: {
-        [Op.or]: [
-          { email: usernameOrEmail },
-          { username: usernameOrEmail }
-        ]
-      }
-    });
+  if (medico) {
+    if (!user.medicoId) await user.update({ medicoId: medico.id });
+    return;
+  }
 
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Credenciales inválidas'
-      });
-    }
+  const medicoId = user.medicoId || `med-${uuidv4()}`;
+  await Medico.create({
+    id: medicoId,
+    nombre: user.nombre,
+    email: user.email,
+    telefono: user.telefono || '',
+    especialidad: user.especialidad || 'General',
+    matricula: user.matricula || '',
+    activo: true
+  });
+  await user.update({ medicoId });
+};
 
-    // Verificar contraseña con el método del modelo
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Credenciales inválidas'
-      });
-    }
+/**
+ * POST /api/auth/register
+ * Registro público de médicos y recepcionistas. La cuenta queda `pendiente`
+ * hasta que un administrador la apruebe.
+ */
+export const register = asyncHandler(async (req, res) => {
+  const { email, password, nombre, rol } = req.body;
 
-    // Verificar estado del usuario
-    if (user.estado !== 'activo') {
-      let message = 'Tu cuenta no está activa';
-      if (user.estado === 'pendiente') {
-        message = 'Tu solicitud de registro está pendiente de aprobación por un administrador';
-      } else if (user.estado === 'rechazado') {
-        message = `Tu solicitud fue rechazada. Motivo: ${user.motivoRechazo || 'No especificado'}`;
-      } else if (user.estado === 'inactivo') {
-        message = 'Tu cuenta ha sido desactivada';
-      }
-
-      return res.status(403).json({
-        success: false,
-        message
-      });
-    }
-
-    console.log('✅ Usuario encontrado:', user.username || user.email);
-
-    // Actualizar último acceso
-    await user.update({
-      ultimoAcceso: new Date()
-    });
-
-    // Autovincular si es médico (asegurar que exista en medicos.json)
-    if (user.rol === 'medico') {
-      let medicoExistente = await Medico.findOne({
-        where: {
-          [Op.or]: [
-            { email: user.email },
-            ...(user.medicoId ? [{ id: user.medicoId }] : [])
-          ]
-        }
-      });
-
-      if (!medicoExistente) {
-        // Crear la ficha de médico si no existe
-        const newId = user.medicoId || `med-${uuidv4()}`;
-        medicoExistente = await Medico.create({
-          id: newId,
-          nombre: user.nombre,
-          email: user.email,
-          telefono: user.telefono || '',
-          especialidad: user.especialidad || 'General',
-          matricula: user.matricula || '',
-          activo: true
-        });
-
-        // Asegurar que el usuario tenga este ID vinculado
-        await user.update({ medicoId: newId });
-        user.medicoId = newId;
-      } else if (!user.medicoId) {
-        // Si existe el médico pero el usuario no tiene el ID, vincularlo
-        await user.update({ medicoId: medicoExistente.id });
-        user.medicoId = medicoExistente.id;
-      }
-    }
-
-    // Generar token JWT
-    const token = jwt.sign(
-      {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        rol: user.rol,
-        medicoId: user.medicoId || null,
-        pacienteId: user.pacienteId || null
-      },
-      config.jwt.secret,
-      { expiresIn: config.jwt.expire }
+  if (!email || !password || !nombre || !rol) {
+    throw new ApiError('Faltan campos requeridos: email, password, nombre, rol', 400);
+  }
+  if (!SELF_REGISTER_ROLES.includes(rol)) {
+    throw new ApiError(
+      'Solo se permite el registro de médicos y recepcionistas. Los pacientes son registrados por el personal autorizado.',
+      403
     );
+  }
+  if (String(password).length < MIN_PASSWORD_LENGTH) {
+    throw new ApiError(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`, 400);
+  }
+  if (await User.findOne({ where: { email } })) {
+    throw new ApiError('El email ya está registrado', 409);
+  }
 
-    // Datos del usuario sin contraseña
-    const userData = {
-      id: user.id,
-      username: user.username,
+  // Sólo se aceptan campos explícitos: `estado`, `medicoId`, etc. no pueden
+  // ser enviados por el cliente para saltarse la aprobación.
+  const newUser = await User.create({
+    ...pick(req.body, SELF_REGISTER_OPTIONAL_FIELDS),
+    id: `usr-${uuidv4()}`,
+    email,
+    password,
+    nombre,
+    rol,
+    loginType: 'email',
+    estado: 'pendiente',
+    fechaCreacion: new Date(),
+    ultimoAcceso: null
+  });
+
+  logAction(newUser.id, newUser.nombre, 'REGISTER', 'AUTH', `Usuario registrado con rol ${newUser.rol} (Pendiente)`);
+
+  successResponse(
+    res,
+    toPublicUser(newUser),
+    'Registro exitoso. Tu solicitud está pendiente de aprobación por un administrador.',
+    201
+  );
+});
+
+/**
+ * POST /api/auth/login
+ * Login con username o email.
+ */
+export const login = asyncHandler(async (req, res) => {
+  const { usernameOrEmail, password } = req.body;
+
+  if (!usernameOrEmail || !password) {
+    throw new ApiError('Usuario/Email y contraseña son requeridos', 400);
+  }
+
+  const user = await User.findOne({
+    where: { [Op.or]: [{ email: usernameOrEmail }, { username: usernameOrEmail }] }
+  });
+
+  // Mismo mensaje para usuario inexistente o contraseña errónea: evita
+  // enumeración de usuarios.
+  if (!user || !(await user.comparePassword(password))) {
+    throw new ApiError('Credenciales inválidas', 401);
+  }
+
+  if (user.estado !== 'activo') {
+    const message =
+      user.estado === 'rechazado'
+        ? `Tu solicitud fue rechazada. Motivo: ${user.motivoRechazo || 'No especificado'}`
+        : INACTIVE_MESSAGES[user.estado] || 'Tu cuenta no está activa';
+    throw new ApiError(message, 403);
+  }
+
+  await user.update({ ultimoAcceso: new Date() });
+  if (user.rol === 'medico') await ensureMedicoProfile(user);
+
+  const token = generateToken({
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    rol: user.rol,
+    medicoId: user.medicoId || null,
+    pacienteId: user.pacienteId || null
+  });
+
+  logAction(user.id, user.nombre, 'LOGIN', 'AUTH', 'Inicio de sesión exitoso');
+
+  successResponse(res, { user: toPublicUser(user), token }, 'Login exitoso');
+});
+
+/**
+ * POST /api/auth/verify
+ * Verifica un token y que el usuario siga activo.
+ */
+export const verifyToken = asyncHandler(async (req, res) => {
+  const { token } = req.body;
+  if (!token) throw new ApiError('Token requerido', 400);
+
+  const decoded = verifyJwt(token);
+  const user = decoded && (await User.findByPk(decoded.id));
+
+  if (!user || user.estado !== 'activo') {
+    throw new ApiError('Token inválido o usuario inactivo', 401);
+  }
+
+  successResponse(res, { user: toPublicUser(user) }, 'Token válido');
+});
+
+/**
+ * POST /api/auth/forgot-password
+ * Siempre responde igual exista o no el email (evita enumeración).
+ */
+export const forgotPassword = asyncHandler(async (req, res) => {
+  const genericMessage = 'Si el email está registrado, recibirás un enlace para restablecer tu contraseña';
+  const { email } = req.body;
+  if (!email) throw new ApiError('El email es requerido', 400);
+
+  const user = await User.findOne({ where: { email } });
+  if (!user) return successResponse(res, null, genericMessage);
+
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  user.resetPasswordToken = hashToken(resetToken);
+  user.resetPasswordExpires = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+  await user.save({ hooks: false });
+
+  // La URL se construye con un valor de configuración, nunca con cabeceras
+  // del request (evita Host/Origin header injection).
+  const resetUrl = `${config.frontendUrl}/reset-password/${resetToken}`;
+
+  try {
+    await sendEmail({
       email: user.email,
-      nombre: user.nombre,
-      rol: user.rol,
-      medicoId: user.medicoId,
-      pacienteId: user.pacienteId,
-      estado: user.estado
-    };
-
-    console.log('✅ Login exitoso:', userData);
-
-    // AUDIT LOG
-    logAction(user.id, user.nombre, 'LOGIN', 'AUTH', 'Inicio de sesión exitoso');
-
-    res.json({
-      success: true,
-      message: 'Login exitoso',
-      data: {
-        user: userData,
-        token
-      }
+      subject: 'Recuperación de Contraseña - Sistema Clínica',
+      message: `Has solicitado restablecer tu contraseña. Abre el siguiente enlace (válido 1 hora):\n\n${resetUrl}`
     });
-  } catch (error) {
-    console.error('❌ Error en login:', error);
-    console.log('FULL ERROR:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error en el servidor',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Verificar token
- */
-export const verifyToken = async (req, res) => {
-  try {
-    const { token } = req.body;
-
-    if (!token) {
-      return res.status(400).json({
-        success: false,
-        message: 'Token requerido'
-      });
-    }
-
-    const decoded = jwt.verify(token, config.jwt.secret);
-
-    // Buscar usuario para verificar que aún esté activo
-    const user = await User.findByPk(decoded.id, {
-      attributes: { exclude: ['password'] }
-    });
-
-    if (!user || user.estado !== 'activo') {
-      return res.status(401).json({
-        success: false,
-        message: 'Token inválido o usuario inactivo'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: {
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          nombre: user.nombre,
-          rol: user.rol,
-          medicoId: user.medicoId,
-          pacienteId: user.pacienteId
-        }
-      }
-    });
-  } catch (error) {
-    console.error('❌ Error verificando token:', error);
-    res.status(401).json({
-      success: false,
-      message: 'Token inválido o expirado'
-    });
-  }
-};
-
-/**
- * Solicitar recuperación de contraseña
- */
-export const forgotPassword = async (req, res) => {
-  try {
-    const { email } = req.body;
-    const user = await User.findOne({ where: { email } });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'No existe un usuario con ese email'
-      });
-    }
-
-    // Generar token de recuperación
-    const resetToken = crypto.randomBytes(20).toString('hex');
-    user.resetPasswordToken = resetToken;
-    user.resetPasswordExpires = Date.now() + 3600000; // 1 hora
-    await user.save({ hooks: false });
-
-    // URL para el frontend
-    const resetUrl = `${req.get('origin')}/reset-password/${resetToken}`;
-
-    const message = `Has solicitado restablecer tu contraseña. Por favor, haz clic en el siguiente enlace:\n\n ${resetUrl}`;
-
-    try {
-      await sendEmail({
-        email: user.email,
-        subject: 'Recuperación de Contraseña - Sistema Clínica',
-        message
-      });
-
-      res.json({
-        success: true,
-        message: 'Correo enviado correctamente'
-      });
-    } catch (err) {
-      user.resetPasswordToken = null;
-      user.resetPasswordExpires = null;
-      await user.save({ hooks: false });
-
-      console.error('Error enviando email:', err);
-      return res.status(500).json({
-        success: false,
-        message: 'No se pudo enviar el email. Inténtalo más tarde.'
-      });
-    }
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-/**
- * Restablecer contraseña con token
- */
-export const resetPassword = async (req, res) => {
-  try {
-    const { token } = req.params;
-    const { password } = req.body;
-
-    const user = await User.findOne({
-      where: {
-        resetPasswordToken: token,
-        resetPasswordExpires: { [Op.gt]: Date.now() }
-      }
-    });
-
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: 'Token inválido o expirado'
-      });
-    }
-
-    // Establecer nueva contraseña (el hook beforeUpdate la hasheará)
-    user.password = password;
+  } catch (err) {
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
-    await user.save(); // Aquí SÍ disparamos hooks para que se hashee
-
-    res.json({
-      success: true,
-      message: 'Contraseña actualizada correctamente'
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    await user.save({ hooks: false });
+    console.error('Error enviando email de recuperación:', err.message);
+    throw new ApiError('No se pudo enviar el email. Inténtalo más tarde.', 502);
   }
-};
+
+  successResponse(res, null, genericMessage);
+});
+
+/**
+ * POST /api/auth/reset-password/:token
+ */
+export const resetPassword = asyncHandler(async (req, res) => {
+  const { password } = req.body;
+  if (!password || String(password).length < MIN_PASSWORD_LENGTH) {
+    throw new ApiError(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`, 400);
+  }
+
+  const user = await User.findOne({
+    where: {
+      resetPasswordToken: hashToken(req.params.token),
+      resetPasswordExpires: { [Op.gt]: new Date() }
+    }
+  });
+  if (!user) throw new ApiError('Token inválido o expirado', 400);
+
+  // El hook beforeUpdate se encarga de hashear la nueva contraseña.
+  user.password = password;
+  user.resetPasswordToken = null;
+  user.resetPasswordExpires = null;
+  await user.save();
+
+  logAction(user.id, user.nombre, 'RESET_PASSWORD', 'AUTH', 'Contraseña restablecida');
+  successResponse(res, null, 'Contraseña actualizada correctamente');
+});
 
 export default {
   register,

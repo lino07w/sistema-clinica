@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext();
@@ -11,44 +11,42 @@ export const useAuth = () => {
   return context;
 };
 
+const TOKEN_KEY = 'token';
+const USER_KEY = 'user';
+
+/** Lee la sesión guardada; si está corrupta la descarta. */
+const loadStoredUser = () => {
+  const token = localStorage.getItem(TOKEN_KEY);
+  const savedUser = localStorage.getItem(USER_KEY);
+  if (!token || !savedUser) return null;
+
+  try {
+    return JSON.parse(savedUser);
+  } catch {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    return null;
+  }
+};
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = () => {
-    const token = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-
-    // Validar que los datos existan y sean válidos
-    if (token && savedUser && savedUser !== 'undefined' && savedUser !== 'null') {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
-        // Si hay error al parsear, limpiar localStorage
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-      }
-    }
-    setLoading(false);
-  };
+  // Inicialización perezosa: la sesión se lee de forma síncrona en el primer
+  // render, sin efectos ni parpadeo de "no autenticado".
+  const [user, setUser] = useState(loadStoredUser);
 
   const login = async (credentials) => {
     const response = await authAPI.login(credentials);
     // El backend devuelve { success, message, data: { user, token } }
     const { token, user: userData } = response.data.data;
 
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(USER_KEY, JSON.stringify(userData));
     setUser(userData);
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
     setUser(null);
   };
 
@@ -74,8 +72,7 @@ export const AuthProvider = ({ children }) => {
     isAdmin,
     isMedico,
     isRecepcionista,
-    isPaciente,
-    loading
+    isPaciente
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,148 +1,163 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
+import Loading from './components/Loading';
 
-// Páginas públicas
+// Páginas públicas: se cargan de inmediato (primera pantalla)
 import Login from './pages/Login';
 import Register from './pages/Register';
 
-// Páginas protegidas
-import Dashboard from './pages/Dashboard';
-import Pacientes from './pages/Pacientes';
-import Medicos from './pages/Medicos';
-import Citas from './pages/Citas';
-import Usuarios from './pages/Usuarios';
-import Solicitudes from './pages/Solicitudes';
-import Reportes from './pages/Reportes';
-import Facturacion from './pages/Facturacion';
-import Configuracion from './pages/Configuracion';
-import HistorialMedico from './pages/HistorialMedico';
-import Auditoria from './pages/Auditoria';
+// Páginas protegidas: code splitting, cada una en su propio chunk.
+// Así el login no descarga gráficos, PDF ni Excel.
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Pacientes = lazy(() => import('./pages/Pacientes'));
+const Medicos = lazy(() => import('./pages/Medicos'));
+const Citas = lazy(() => import('./pages/Citas'));
+const Usuarios = lazy(() => import('./pages/Usuarios'));
+const Solicitudes = lazy(() => import('./pages/Solicitudes'));
+const Reportes = lazy(() => import('./pages/Reportes'));
+const Facturacion = lazy(() => import('./pages/Facturacion'));
+const Configuracion = lazy(() => import('./pages/Configuracion'));
+const HistorialMedico = lazy(() => import('./pages/HistorialMedico'));
+const Auditoria = lazy(() => import('./pages/Auditoria'));
 
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
+
+/** Al cambiar de página, volver arriba (React Router conserva el scroll). */
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
 
 function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
         <ToastProvider>
-          <Routes>
-            {/* Rutas públicas */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+          <ScrollToTop />
+          <Suspense fallback={<Loading />}>
+            <Routes>
+              {/* Rutas públicas */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
 
-            {/* Rutas protegidas - Todos los roles autenticados */}
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
+              {/* Rutas protegidas - Todos los roles autenticados */}
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* Rutas protegidas - Solo Admin */}
-            <Route
-              path="/usuarios"
-              element={
-                <ProtectedRoute allowedRoles={['administrador']}>
-                  <Usuarios />
-                </ProtectedRoute>
-              }
-            />
+              {/* Rutas protegidas - Solo Admin */}
+              <Route
+                path="/usuarios"
+                element={
+                  <ProtectedRoute allowedRoles={['administrador']}>
+                    <Usuarios />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/solicitudes"
-              element={
-                <ProtectedRoute allowedRoles={['administrador']}>
-                  <Solicitudes />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/solicitudes"
+                element={
+                  <ProtectedRoute allowedRoles={['administrador']}>
+                    <Solicitudes />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/medicos"
-              element={
-                <ProtectedRoute allowedRoles={['administrador']}>
-                  <Medicos />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/medicos"
+                element={
+                  <ProtectedRoute allowedRoles={['administrador']}>
+                    <Medicos />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* 🆕 NUEVA RUTA - Reportes (Solo Admin) */}
-            <Route
-              path="/reportes"
-              element={
-                <ProtectedRoute allowedRoles={['administrador']}>
-                  <Reportes />
-                </ProtectedRoute>
-              }
-            />
+              {/* Reportes (Solo Admin) */}
+              <Route
+                path="/reportes"
+                element={
+                  <ProtectedRoute allowedRoles={['administrador']}>
+                    <Reportes />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* 🆕 NUEVA RUTA - Historial Médico (Admin y Médico) */}
-            <Route
-              path="/historial"
-              element={
-                <ProtectedRoute allowedRoles={['administrador', 'medico']}>
-                  <HistorialMedico />
-                </ProtectedRoute>
-              }
-            />
+              {/* Historial Médico (Admin y Médico) */}
+              <Route
+                path="/historial"
+                element={
+                  <ProtectedRoute allowedRoles={['administrador', 'medico']}>
+                    <HistorialMedico />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* 🆕 NUEVA RUTA - Configuración (Solo Admin) */}
-            <Route
-              path="/configuracion"
-              element={
-                <ProtectedRoute allowedRoles={['administrador']}>
-                  <Configuracion />
-                </ProtectedRoute>
-              }
-            />
+              {/* Configuración (Solo Admin) */}
+              <Route
+                path="/configuracion"
+                element={
+                  <ProtectedRoute allowedRoles={['administrador']}>
+                    <Configuracion />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/auditoria"
-              element={
-                <ProtectedRoute allowedRoles={['administrador']}>
-                  <Auditoria />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/auditoria"
+                element={
+                  <ProtectedRoute allowedRoles={['administrador']}>
+                    <Auditoria />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* 🆕 NUEVA RUTA - Facturación (Admin y Recepcionista) */}
-            <Route
-              path="/facturacion"
-              element={
-                <ProtectedRoute allowedRoles={['administrador', 'recepcionista']}>
-                  <Facturacion />
-                </ProtectedRoute>
-              }
-            />
+              {/* Facturación (Admin y Recepcionista) */}
+              <Route
+                path="/facturacion"
+                element={
+                  <ProtectedRoute allowedRoles={['administrador', 'recepcionista']}>
+                    <Facturacion />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* Rutas protegidas - Admin y Recepcionista */}
-            <Route
-              path="/pacientes"
-              element={
-                <ProtectedRoute allowedRoles={['administrador', 'recepcionista']}>
-                  <Pacientes />
-                </ProtectedRoute>
-              }
-            />
+              {/* Rutas protegidas - Admin y Recepcionista */}
+              <Route
+                path="/pacientes"
+                element={
+                  <ProtectedRoute allowedRoles={['administrador', 'recepcionista']}>
+                    <Pacientes />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* Rutas protegidas - Admin, Recepcionista y Médico */}
-            <Route
-              path="/citas"
-              element={
-                <ProtectedRoute allowedRoles={['administrador', 'recepcionista', 'medico']}>
-                  <Citas />
-                </ProtectedRoute>
-              }
-            />
+              {/* Rutas protegidas - Admin, Recepcionista y Médico */}
+              <Route
+                path="/citas"
+                element={
+                  <ProtectedRoute allowedRoles={['administrador', 'recepcionista', 'medico']}>
+                    <Citas />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* Redirecciones */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
+              {/* Redirecciones */}
+              <Route path="/" element={<Navigate to="/login" replace />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </Suspense>
         </ToastProvider>
       </ThemeProvider>
     </AuthProvider>

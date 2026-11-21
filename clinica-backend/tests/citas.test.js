@@ -1,72 +1,82 @@
 import request from 'supertest';
-import { app, sequelize } from '../server.js';
+import { app, sequelize, loginAsAdmin } from './helpers.js';
+
+const { Paciente, Medico, Cita } = sequelize.models;
 
 describe('Citas Endpoints', () => {
-    let token;
-    let testCitaId;
-    let pacienteId;
-    let medicoId;
+  let token;
+  let paciente;
+  let medico;
+  let citaId;
 
-    beforeAll(async () => {
-        await sequelize.authenticate();
-        const res = await request(app)
-            .post('/api/auth/login')
-            .send({
-                usernameOrEmail: 'admin',
-                password: '123456'
-            });
-        token = res.body.data.token;
+  const auth = (req) => req.set('Authorization', `Bearer ${token}`);
 
-        // Obtener un paciente y un médico para las pruebas
-        const pacRes = await request(app)
-            .get('/api/pacientes')
-            .set('Authorization', `Bearer ${token}`);
-        pacienteId = pacRes.body.data[0]?.id;
+  beforeAll(async () => {
+    token = await loginAsAdmin();
+    const suffix = Date.now();
 
-        const medRes = await request(app)
-            .get('/api/medicos')
-            .set('Authorization', `Bearer ${token}`);
-        medicoId = medRes.body.data[0]?.id;
+    // Cada suite crea sus propios datos: los tests no dependen del estado de la BD.
+    paciente = await Paciente.create({
+      nombre: 'Paciente Citas Test',
+      dni: `CT-${suffix}`,
+      fechaNacimiento: '1990-01-01',
+      genero: 'Femenino'
+    });
+    medico = await Medico.create({
+      nombre: 'Médico Citas Test',
+      especialidad: 'General',
+      matricula: `MCT-${suffix}`,
+      email: `medico-${suffix}@test.com`
+    });
+  });
+
+  afterAll(async () => {
+    await Cita.destroy({ where: { pacienteId: paciente.id } });
+    await paciente.destroy();
+    await medico.destroy();
+    await sequelize.close();
+  });
+
+  it('lista las citas', async () => {
+    const res = await auth(request(app).get('/api/citas'));
+
+    expect(res.statusCode).toBe(200);
+    expect(Array.isArray(res.body.data)).toBe(true);
+  });
+
+  it('crea una cita', async () => {
+    const res = await auth(request(app).post('/api/citas')).send({
+      pacienteId: paciente.id,
+      medicoId: medico.id,
+      fecha: '2030-12-30',
+      hora: '10:00',
+      motivo: 'Consulta de prueba'
     });
 
-    afterAll(async () => {
-        if (testCitaId) {
-            await request(app)
-                .delete(`/api/citas/${testCitaId}`)
-                .set('Authorization', `Bearer ${token}`);
-        }
-        await sequelize.close();
+    expect(res.statusCode).toBe(201);
+    expect(res.body.data).toHaveProperty('id');
+    citaId = res.body.data.id;
+  });
+
+  it('impide dos citas del mismo médico en el mismo horario (409)', async () => {
+    const res = await auth(request(app).post('/api/citas')).send({
+      pacienteId: paciente.id,
+      medicoId: medico.id,
+      fecha: '2030-12-30',
+      hora: '10:00',
+      motivo: 'Cita duplicada'
     });
 
-    it('should list all appointments', async () => {
-        const res = await request(app)
-            .get('/api/citas')
-            .set('Authorization', `Bearer ${token}`);
+    expect(res.statusCode).toBe(409);
+  });
 
-        expect(res.statusCode).toEqual(200);
-        expect(res.body.success).toBe(true);
-        expect(Array.isArray(res.body.data)).toBe(true);
-    });
+  it('no permite eliminar un paciente con citas (409)', async () => {
+    const res = await auth(request(app).delete(`/api/pacientes/${paciente.id}`));
+    expect(res.statusCode).toBe(409);
+  });
 
-    it('should create a new appointment', async () => {
-        if (!pacienteId || !medicoId) {
-            console.warn('⚠️ No se puede probar creación de cita: No hay pacientes o médicos en la DB');
-            return;
-        }
-
-        const res = await request(app)
-            .post('/api/citas')
-            .set('Authorization', `Bearer ${token}`)
-            .send({
-                pacienteId: pacienteId,
-                medicoId: medicoId,
-                fecha: '2025-12-30',
-                hora: '10:00',
-                motivo: 'Consulta de prueba'
-            });
-
-        expect(res.statusCode).toEqual(201);
-        expect(res.body.success).toBe(true);
-        testCitaId = res.body.data.id;
-    });
+  it('elimina la cita', async () => {
+    const res = await auth(request(app).delete(`/api/citas/${citaId}`));
+    expect(res.statusCode).toBe(200);
+  });
 });

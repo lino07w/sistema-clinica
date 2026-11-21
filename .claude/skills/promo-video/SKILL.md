@@ -1,0 +1,103 @@
+---
+name: promo-video
+description: Graba los videos promocionales del sistema de clínica (horizontal 1920×1080 para LinkedIn/YouTube y vertical 1080×1920 para TikTok/Reels) recorriendo la app real con Playwright y montándolos con ffmpeg. Úsala cuando haya que crear o actualizar el video de demostración o de publicidad tras cambios en la interfaz.
+---
+
+# Video promocional
+
+Genera dos MP4 listos para redes a partir de la aplicación real:
+
+| Formato | Resolución | Duración | Para |
+|---|---|---|---|
+| `horizontal` | 1920×1080, 30 fps | ~44 s | LinkedIn, YouTube, portafolio |
+| `vertical` | 1080×1920, 30 fps | ~30 s | TikTok, Reels, Shorts |
+
+Estructura de cada video: tarjeta de inicio animada → recorrido por la app con
+cursor visible (o toques en móvil) y subtítulos → tarjeta de cierre con el enlace
+a la demo. Usa la identidad visual de `docs/DESIGN.md`.
+
+## Requisitos
+
+- Node 22, Playwright con Chromium y ffmpeg (con `bc` para el montaje).
+- PostgreSQL local y las dependencias de `clinica-backend` y `clinica-react` instaladas.
+
+## Pasos
+
+Desde la raíz del repositorio:
+
+```bash
+# 1. Backend contra una BD local de pruebas (¡reset.sh la borra!)
+cd clinica-backend
+NODE_ENV=development DB_HOST=localhost DB_USER=postgres DB_PASSWORD=postgres \
+  DB_NAME=clinica_e2e JWT_SECRET=dev FRONTEND_URL=http://localhost:4173 node server.js &
+
+# 2. Frontend compilado con las cuentas de demostración visibles
+cd ../clinica-react
+VITE_DEMO_MODE=true npm run build && npx vite preview --port 4173 --strictPort &
+
+# 3. Grabar y montar (repetir para "vertical")
+cd ../.claude/skills/promo-video/scripts
+NODE_USE_ENV_PROXY=1 node tts.cjs horizontal   # opcional: voz en off (ver abajo)
+./reset.sh && node record.cjs horizontal && ./assemble.sh horizontal
+```
+
+### Voz en off con ElevenLabs (opcional)
+
+Antes de grabar, genera las frases de `scripts/narration.json`:
+
+```bash
+NODE_USE_ENV_PROXY=1 node tts.cjs horizontal     # o vertical
+```
+
+- La API key no va en el código. En la nube de Claude Code se guarda como
+  secreto de red del entorno (host `api.elevenlabs.io`, cabecera `xi-api-key`)
+  y el proxy la inyecta. En local, exporta `ELEVENLABS_API_KEY`.
+- La voz por defecto es **Sarah** (`EXAVITQu4vr4xnSDxMaL`), que habla español con el modelo
+  `eleven_multilingual_v2`. `ELEVENLABS_VOICE_ID` permite usar otra.
+- `NODE_USE_ENV_PROXY=1` hace que el `fetch` de Node use el proxy del entorno en la nube
+  (sin esa variable falla con "fetch failed").
+- `npx @elevenlabs/cli onboard check` solo revisa `.env.local`: con la clave como
+  secreto de red ese chequeo falla aunque la API funcione.
+- Las frases sin cambios no se regeneran (caché por hash), así no se gastan créditos de más.
+
+Con la voz generada, `record.cjs` alarga cada escena hasta que termina su frase
+y `assemble.sh` coloca cada frase en el segundo de su escena, con el volumen
+normalizado a -16 LUFS (el estándar de las redes). Si no hay voz, el video lleva
+una pista silenciosa.
+
+Los videos quedan en `.claude/skills/promo-video/out/promo-<formato>.mp4`
+(carpeta ignorada por git). Ejecuta siempre `reset.sh` antes de cada grabación:
+el guion crea una cita y los datos deben empezar igual.
+
+Después de montar, **revisa el video** extrayendo cuadros, por ejemplo:
+`ffmpeg -ss 12 -i ../out/promo-horizontal.mp4 -frames:v 1 cuadro.png`.
+
+## Personalizar
+
+- **Guion:** las funciones `scriptHorizontal` y `scriptVertical` de `record.cjs`.
+  Cada escena empieza con `scene(id, título, subtítulo)` y sigue con acciones (`press`, `type`, `scroll`, `moveTo`).
+- **Textos de las tarjetas:** `card.html` (`kind=intro` / `kind=outro`).
+- **Locución:** `narration.json`, una frase por escena (el mismo id que usa `scene()` en `record.cjs`).
+- **Hora simulada:** `PROMO_TIME=10:40` (la marca "ahora" de la agenda).
+- **Otra URL:** `PROMO_APP_URL` y `PROMO_API_URL`.
+
+## Cómo funciona y lecciones aprendidas
+
+- `recordVideo` de Playwright y el screencast de DevTools graban a resolución
+  CSS (1440×810 o 405×720), lo que se ve borroso al escalar. Por eso
+  `recorder.cjs` hace capturas JPEG continuas por CDP con `clip.scale` igual al
+  `deviceScaleFactor` (3 en paralelo, unos 30 fps) y ffmpeg las convierte en un
+  video a 30 fps constantes usando las marcas de tiempo.
+- El `clip` de `Page.captureScreenshot` va en coordenadas del **documento**: hay
+  que sumarle el scroll y descartar el cuadro si el scroll cambió durante la captura.
+  Si no, al hacer scroll los elementos fijos aparecen desplazados.
+- Las páginas de tarjetas necesitan `<meta name="viewport">`; si no, en modo
+  móvil se dibujan a 980 px.
+- Cada escena empieza **después** de cambiar de pantalla, para que la voz no hable
+  de algo que todavía no se ve.
+- En vertical los subtítulos van arriba: abajo tapaban el botón principal del
+  formulario (la hoja inferior).
+- El reloj del navegador se fija con `context.clock.setFixedTime` y la zona
+  `America/Lima`, para que la agenda muestre siempre la misma hora.
+- Revisa el estilo de los textos con la skill `frontend-design`: frases en voz
+  activa, sin mayúsculas sostenidas ni separadores "·".
