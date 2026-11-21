@@ -5,6 +5,10 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import ContentWrapper from '../components/ContentWrapper';
+import { Plus } from 'lucide-react';
+import StatusBadge from '../components/StatusBadge';
+import { formatShortDate, normalizeTime } from '../utils/dates';
+import '../styles/Page.css';
 import Can from '../components/Can';
 import SearchBar from '../components/SearchBar';
 import Pagination from '../components/Pagination';
@@ -106,10 +110,10 @@ const Citas = () => {
         const dataToSend = isMedico() ? { estado: data.estado } : data;
 
         await citasAPI.update(editando, dataToSend);
-        addToast('Cita actualizada correctamente', 'success');
+        addToast('Cambios guardados', 'success');
       } else {
         await citasAPI.create(data);
-        addToast('Cita creada correctamente', 'success');
+        addToast('Cita agendada', 'success');
       }
       setShowModal(false);
       reset();
@@ -183,7 +187,7 @@ const Citas = () => {
   const confirmarEliminacion = async () => {
     try {
       await citasAPI.delete(citaAEliminar);
-      addToast('Cita eliminada correctamente', 'success');
+      addToast('Cita eliminada', 'success');
       cargarDatos();
     } catch (error) {
       addToast(error.response?.data?.message || 'Error al eliminar cita', 'error');
@@ -220,29 +224,20 @@ const Citas = () => {
     return m ? m.nombre : 'Desconocido';
   };
 
-  const getBadgeColor = (estado) => {
-    const colors = {
-      programada: '#3B82F6',
-      completada: '#10B981',
-      cancelada: '#EF4444',
-      en_proceso: '#F59E0B'
-    };
-    return colors[estado] || '#64748B';
-  };
-
   return (
     <>
       <Navbar />
       <ContentWrapper>
-        <main style={styles.content}>
-          <div style={styles.header}>
-            <h1 style={styles.title}>
-              {isMedico() ? 'Mis Citas' : 'Gestión de Citas'}
+        <main className="page">
+          <div className="page-header">
+            <h1 className="page-title">
+              {isMedico() ? 'Mis citas' : 'Citas'}
             </h1>
 
             <Can roles={['administrador', 'recepcionista']}>
-              <button style={styles.btnPrimary} onClick={() => handleNuevo()}>
-                + Nueva Cita
+              <button type="button" className="btn btn-primary" onClick={() => handleNuevo()}>
+                <Plus size={16} aria-hidden="true" />
+                Nueva cita
               </button>
             </Can>
           </div>
@@ -255,7 +250,7 @@ const Citas = () => {
                 <SearchBar
                   value={searchTerm}
                   onChange={setSearchTerm}
-                  placeholder="Buscar por paciente, médico, fecha..."
+                  placeholder="Buscar por paciente, médico o fecha"
                 />
               </div>
               <ExportButtons
@@ -282,9 +277,9 @@ const Citas = () => {
             <Spinner />
           ) : (
             <>
-              <div style={styles.tableWrapper}>
-                <div style={styles.tableContainer}>
-                  <table style={styles.table}>
+              <div className="table-scroll">
+                <div className="table-panel">
+                  <table className="data-table">
                     <thead>
                       <tr>
                         <Can roles={['administrador', 'recepcionista']}>
@@ -302,8 +297,8 @@ const Citas = () => {
                           />
                         </Can>
                         <Can roles={['medico']}>
-                          <th style={styles.th}>Paciente</th>
-                          <th style={styles.th}>Médico</th>
+                          <th>Paciente</th>
+                          <th>Médico</th>
                         </Can>
                         <TableHeader
                           column="fecha"
@@ -317,46 +312,43 @@ const Citas = () => {
                           sortConfig={sortConfig}
                           onSort={handleSort}
                         />
-                        <th style={styles.th}>Motivo</th>
+                        <th>Motivo</th>
                         <TableHeader
                           column="estado"
                           label="Estado"
                           sortConfig={sortConfig}
                           onSort={handleSort}
                         />
-                        <th style={styles.th}>Acciones</th>
+                        <th className="cell-actions"><span className="visually-hidden">Acciones</span></th>
                       </tr>
                     </thead>
                     <tbody>
                       {paginatedData.length === 0 ? (
                         <tr>
-                          <td colSpan="7" style={styles.empty}>
+                          <td colSpan="7" className="table-empty">
                             {searchTerm ? 'No se encontraron resultados' : 'No hay citas registradas'}
                           </td>
                         </tr>
                       ) : (
                         paginatedData.map(c => (
-                          <tr key={c.id} style={styles.tr}>
-                            {/* Usamos c.pacienteNombre si existe (populate backend) o buscamos en array */}
-                            <td style={styles.td}>{c.pacienteNombre || getNombrePaciente(c.pacienteId)}</td>
-                            <td style={styles.td}>{c.medicoNombre || getNombreMedico(c.medicoId)}</td>
-                            <td style={styles.td}>{c.fecha}</td>
-                            <td style={styles.td}>{c.hora}</td>
-                            <td style={styles.td}>{c.motivo || '-'}</td>
-                            <td style={styles.td}>
-                              <span style={{ ...styles.badge, background: getBadgeColor(c.estado) }}>
-                                {c.estado}
-                              </span>
+                          <tr key={c.id}>
+                            <td>{c.paciente?.nombre || getNombrePaciente(c.pacienteId)}</td>
+                            <td>{c.medico?.nombre || getNombreMedico(c.medicoId)}</td>
+                            <td className="tabular cell-nowrap">{formatShortDate(c.fecha)}</td>
+                            <td className="tabular">{normalizeTime(c.hora)}</td>
+                            <td>{c.motivo || '-'}</td>
+                            <td>
+                              <StatusBadge estado={c.estado} />
                             </td>
-                            <td style={styles.tdActions}>
+                            <td className="cell-actions">
                               <Can roles={['administrador', 'recepcionista', 'medico']}>
-                                <button style={styles.btnEdit} onClick={() => handleEdit(c)}>
+                                <button className="btn btn-ghost btn-sm" onClick={() => handleEdit(c)}>
                                   {isMedico() ? 'Estado' : 'Editar'}
                                 </button>
                               </Can>
 
                               <Can roles={['administrador']}>
-                                <button style={styles.btnDelete} onClick={() => handleDelete(c.id)}>
+                                <button className="btn btn-ghost btn-sm btn-ghost-danger" onClick={() => handleDelete(c.id)}>
                                   Eliminar
                                 </button>
                               </Can>
@@ -383,113 +375,114 @@ const Citas = () => {
           )}
 
           {showModal && (
-            <div style={styles.modalOverlay} onClick={() => setShowModal(false)}>
-              <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-                <h2 style={styles.modalTitle}>
-                  {isMedico()
-                    ? 'Actualizar Estado de Cita'
-                    : `${editando ? 'Editar' : 'Nueva'} Cita`
-                  }
+            <div className="modal-overlay" onClick={() => setShowModal(false)}>
+              <div className="modal" onClick={(e) => e.stopPropagation()}>
+                <h2 className="modal-title">
+                  {isMedico() ? 'Estado de la cita' : editando ? 'Editar cita' : 'Nueva cita'}
                 </h2>
-                <form onSubmit={handleSubmit(onSubmit)} style={styles.form}>
-
+                <form onSubmit={handleSubmit(onSubmit)} className="modal-form">
                   {!isMedico() && (
                     <>
-                      <div style={styles.inputGroup}>
+                      <div className="field">
+                        <label className="field-label" htmlFor="c-paciente">Paciente</label>
                         <select
-                          style={{ ...styles.input, borderColor: errors.pacienteId ? '#DC2626' : 'var(--border-color)' }}
+                          id="c-paciente"
+                          className="field-input"
+                          aria-invalid={Boolean(errors.pacienteId)}
                           {...register('pacienteId')}
                         >
-                          <option value="">Seleccione un paciente</option>
-                          {pacientes.map(p => (
-                            <option key={p.id} value={p.id}>{p.nombre} - {p.dni}</option>
+                          <option value="">Elige un paciente</option>
+                          {pacientes.map((p) => (
+                            <option key={p.id} value={p.id}>{p.nombre} (DNI {p.dni})</option>
                           ))}
                         </select>
-                        {errors.pacienteId && <span style={styles.errorText}>{errors.pacienteId.message}</span>}
+                        {errors.pacienteId && <span className="field-error">{errors.pacienteId.message}</span>}
                       </div>
 
-                      <div style={styles.inputGroup}>
+                      <div className="field">
+                        <label className="field-label" htmlFor="c-medico">Médico</label>
                         <select
-                          style={{
-                            ...styles.input,
-                            borderColor: errors.medicoId ? '#DC2626' : 'var(--border-color)',
-                            backgroundColor: isMedico() ? '#f3f4f6' : 'white',
-                            cursor: isMedico() ? 'not-allowed' : 'pointer'
-                          }}
+                          id="c-medico"
+                          className="field-input"
+                          aria-invalid={Boolean(errors.medicoId)}
                           {...register('medicoId')}
-                          disabled={isMedico()}
                         >
-                          <option value="">Seleccione un médico</option>
-                          {medicos.map(m => (
-                            <option key={m.id} value={m.id}>{m.nombre} - {m.especialidad}</option>
+                          <option value="">Elige un médico</option>
+                          {medicos.map((m) => (
+                            <option key={m.id} value={m.id}>{m.nombre}, {m.especialidad}</option>
                           ))}
                         </select>
-                        {errors.medicoId && <span style={styles.errorText}>{errors.medicoId.message}</span>}
+                        {errors.medicoId && <span className="field-error">{errors.medicoId.message}</span>}
                       </div>
 
-                      <div style={styles.inputGroup}>
-                        <input
-                          style={{ ...styles.input, borderColor: errors.fecha ? '#DC2626' : 'var(--border-color)' }}
-                          type="date"
-                          {...register('fecha')}
-                        />
-                        {errors.fecha && <span style={styles.errorText}>{errors.fecha.message}</span>}
+                      <div className="field-row">
+                        <div className="field">
+                          <label className="field-label" htmlFor="c-fecha">Fecha</label>
+                          <input
+                            id="c-fecha"
+                            className="field-input"
+                            type="date"
+                            aria-invalid={Boolean(errors.fecha)}
+                            {...register('fecha')}
+                          />
+                          {errors.fecha && <span className="field-error">{errors.fecha.message}</span>}
+                        </div>
+                        <div className="field">
+                          <label className="field-label" htmlFor="c-hora">Hora</label>
+                          <input
+                            id="c-hora"
+                            className="field-input"
+                            type="time"
+                            aria-invalid={Boolean(errors.hora)}
+                            {...register('hora')}
+                          />
+                          {errors.hora && <span className="field-error">{errors.hora.message}</span>}
+                        </div>
                       </div>
 
-                      <div style={styles.inputGroup}>
-                        <input
-                          style={{ ...styles.input, borderColor: errors.hora ? '#DC2626' : 'var(--border-color)' }}
-                          type="time"
-                          {...register('hora')}
-                        />
-                        {errors.hora && <span style={styles.errorText}>{errors.hora.message}</span>}
-                      </div>
-
-                      <div style={styles.inputGroup}>
-                        <input
-                          style={styles.input}
-                          placeholder="Motivo de la consulta (opcional)"
-                          {...register('motivo')}
-                        />
+                      <div className="field">
+                        <label className="field-label" htmlFor="c-motivo">
+                          Motivo <span className="field-optional">(opcional)</span>
+                        </label>
+                        <input id="c-motivo" className="field-input" {...register('motivo')} />
                       </div>
                     </>
                   )}
 
                   {isMedico() && citaEditandoData && (
-                    <div style={styles.citaInfo}>
-                      <div style={styles.infoRow}>
-                        <strong>Paciente:</strong> {citaEditandoData.pacienteNombre}
+                    <dl className="detail-list">
+                      <div>
+                        <dt>Paciente</dt>
+                        <dd>{citaEditandoData.paciente?.nombre ?? getNombrePaciente(citaEditandoData.pacienteId)}</dd>
                       </div>
-                      <div style={styles.infoRow}>
-                        <strong>Fecha:</strong> {citaEditandoData.fecha}
+                      <div>
+                        <dt>Fecha y hora</dt>
+                        <dd>
+                          {formatShortDate(citaEditandoData.fecha)}, {normalizeTime(citaEditandoData.hora)}
+                        </dd>
                       </div>
-                      <div style={styles.infoRow}>
-                        <strong>Hora:</strong> {citaEditandoData.hora}
+                      <div>
+                        <dt>Motivo</dt>
+                        <dd>{citaEditandoData.motivo || 'Sin especificar'}</dd>
                       </div>
-                      <div style={styles.infoRow}>
-                        <strong>Motivo:</strong> {citaEditandoData.motivo || 'No especificado'}
-                      </div>
-                    </div>
+                    </dl>
                   )}
 
-                  <div style={styles.inputGroup}>
-                    <select
-                      style={styles.input}
-                      {...register('estado')}
-                    >
+                  <div className="field">
+                    <label className="field-label" htmlFor="c-estado">Estado</label>
+                    <select id="c-estado" className="field-input" {...register('estado')}>
                       <option value="programada">Programada</option>
-                      <option value="en_proceso">En Proceso</option>
-                      <option value="completada">Completada</option>
+                      <option value="completada">Atendida</option>
                       <option value="cancelada">Cancelada</option>
                     </select>
                   </div>
 
-                  <div style={styles.modalActions}>
-                    <button type="button" style={styles.btnCancel} onClick={() => setShowModal(false)}>
+                  <div className="modal-actions">
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
                       Cancelar
                     </button>
-                    <button type="submit" style={styles.btnSubmit}>
-                      {isMedico() ? 'Actualizar Estado' : (editando ? 'Actualizar' : 'Crear')}
+                    <button type="submit" className="btn btn-primary">
+                      {isMedico() ? 'Guardar estado' : (editando ? 'Guardar cambios' : 'Agendar cita')}
                     </button>
                   </div>
                 </form>
@@ -501,8 +494,9 @@ const Citas = () => {
             isOpen={showConfirm}
             onClose={() => setShowConfirm(false)}
             onConfirm={confirmarEliminacion}
-            title="Eliminar Cita"
-            message="¿Está seguro de que desea eliminar esta cita? Esta acción no se puede deshacer."
+            title="¿Eliminar esta cita?"
+            message="Esta acción no se puede deshacer."
+            confirmText="Eliminar cita"
           />
         </main>
       </ContentWrapper>
@@ -510,213 +504,5 @@ const Citas = () => {
   );
 };
 
-const styles = {
-  content: {
-    flex: 1,
-    width: '100%',
-    padding: 'clamp(1rem, 3vw, 2rem)',
-    maxWidth: '100%',
-    minHeight: '100vh',
-    background: 'var(--bg-main)',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '2rem',
-    flexWrap: 'wrap',
-    gap: '1rem',
-  },
-  title: {
-    fontSize: 'clamp(1.5rem, 5vw, 2rem)',
-    color: 'var(--primary-color)',
-    fontWeight: '700',
-    margin: 0,
-  },
-  btnPrimary: {
-    padding: 'clamp(0.5rem, 2vw, 0.75rem) clamp(1rem, 3vw, 1.5rem)',
-    background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-color))',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.5rem',
-    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-    fontWeight: '600',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-  },
-  loading: {
-    textAlign: 'center',
-    padding: '3rem 1rem',
-    color: 'var(--text-secondary)',
-    fontSize: 'clamp(1rem, 3vw, 1.125rem)',
-  },
-  tableWrapper: {
-    width: '100%',
-    overflowX: 'auto',
-  },
-  tableContainer: {
-    background: 'var(--bg-card)',
-    borderRadius: '1rem',
-    boxShadow: 'var(--shadow-md)',
-    overflow: 'hidden',
-    minWidth: '100%',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    minWidth: '700px',
-  },
-  th: {
-    padding: 'clamp(0.75rem, 2vw, 1rem)',
-    textAlign: 'left',
-    background: 'var(--bg-hover)',
-    fontWeight: '600',
-    color: 'var(--text-primary)',
-    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
-    whiteSpace: 'nowrap',
-  },
-  tr: {
-    borderTop: '1px solid var(--border-color)',
-    transition: 'background 0.2s',
-  },
-  td: {
-    padding: 'clamp(0.75rem, 2vw, 1rem)',
-    color: 'var(--text-secondary)',
-    fontSize: 'clamp(0.8rem, 2vw, 0.95rem)',
-  },
-  tdActions: {
-    padding: 'clamp(0.75rem, 2vw, 1rem)',
-    whiteSpace: 'nowrap',
-  },
-  empty: {
-    textAlign: 'center',
-    padding: '3rem 1rem',
-    color: 'var(--text-secondary)',
-    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-  },
-  badge: {
-    display: 'inline-block',
-    padding: 'clamp(0.25rem, 1vw, 0.35rem) clamp(0.5rem, 2vw, 0.65rem)',
-    borderRadius: '9999px',
-    color: 'white',
-    fontSize: 'clamp(0.65rem, 1.5vw, 0.75rem)',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    whiteSpace: 'nowrap',
-  },
-  btnEdit: {
-    padding: 'clamp(0.4rem, 1.5vw, 0.5rem) clamp(0.75rem, 2vw, 1rem)',
-    background: 'var(--primary-color)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.375rem',
-    marginRight: '0.5rem',
-    cursor: 'pointer',
-    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
-    whiteSpace: 'nowrap',
-  },
-  btnDelete: {
-    padding: 'clamp(0.4rem, 1.5vw, 0.5rem) clamp(0.75rem, 2vw, 1rem)',
-    background: 'var(--error-color)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.375rem',
-    cursor: 'pointer',
-    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
-    whiteSpace: 'nowrap',
-  },
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    background: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-    padding: '1rem',
-  },
-  modal: {
-    background: 'var(--bg-card)',
-    padding: 'clamp(1.5rem, 4vw, 2rem)',
-    borderRadius: '1rem',
-    width: '100%',
-    maxWidth: '500px',
-    maxHeight: '90vh',
-    overflowY: 'auto',
-  },
-  modalTitle: {
-    marginBottom: '1.5rem',
-    color: 'var(--primary-dark)',
-    fontSize: 'clamp(1.25rem, 4vw, 1.5rem)',
-    margin: '0 0 1.5rem 0',
-  },
-  form: {
-    width: '100%',
-  },
-  citaInfo: {
-    background: 'var(--bg-hover)',
-    padding: '1rem',
-    borderRadius: '0.5rem',
-    marginBottom: '1rem',
-  },
-  infoRow: {
-    marginBottom: '0.5rem',
-    color: 'var(--text-secondary)',
-    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-  },
-  input: {
-    width: '100%',
-    padding: 'clamp(0.625rem, 2vw, 0.75rem)',
-    border: '2px solid var(--border-color)',
-    borderRadius: '0.5rem',
-    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-    boxSizing: 'border-box',
-    background: 'var(--input-bg)',
-    color: 'var(--text-primary)',
-  },
-  inputGroup: {
-    marginBottom: '1rem',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  errorText: {
-    color: 'var(--error-color)',
-    fontSize: '0.85rem',
-    marginTop: '0.25rem',
-  },
-  modalActions: {
-    display: 'flex',
-    gap: '1rem',
-    marginTop: '1.5rem',
-    flexWrap: 'wrap',
-  },
-  btnCancel: {
-    flex: 1,
-    minWidth: '120px',
-    padding: 'clamp(0.625rem, 2vw, 0.75rem)',
-    background: 'var(--bg-hover)',
-    color: 'var(--text-secondary)',
-    border: 'none',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-    fontWeight: '500',
-  },
-  btnSubmit: {
-    flex: 1,
-    minWidth: '120px',
-    padding: 'clamp(0.625rem, 2vw, 0.75rem)',
-    background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-color))',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-    fontWeight: '600',
-  },
-};
 
 export default Citas;

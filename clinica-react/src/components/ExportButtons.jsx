@@ -1,115 +1,66 @@
+import { useState } from 'react';
+import { FileSpreadsheet, FileText } from 'lucide-react';
 import { exportToExcel, exportToPDF } from '../utils/exportUtils';
+import { useToast } from '../context/ToastContext';
 
 /** Usa las columnas recibidas o las infiere a partir de la primera fila. */
 const resolveColumns = (columns, data) => {
-    if (Array.isArray(columns) && columns.length > 0) return columns;
-    return Object.keys(data[0] || {}).map((key) => ({ header: key, dataKey: key }));
+  if (Array.isArray(columns) && columns.length > 0) return columns;
+  return Object.keys(data[0] || {}).map((key) => ({ header: key, dataKey: key }));
 };
 
-const ExportButtons = ({ data, fileName, title = 'Reporte', columns: columnsProp = [] }) => {
+/** Filas con las claves que espera cada formato (encabezado para Excel, dataKey para PDF). */
+const toRows = (data, columns, keyOf) =>
+  data.map((item) =>
+    Object.fromEntries(columns.map((col) => [keyOf(col), item[col.dataKey] ?? '']))
+  );
 
-    const handleExportExcel = async () => {
-        try {
-            if (!data || data.length === 0) {
-                alert('No hay datos para exportar');
-                return;
-            }
+const ExportButtons = ({ data = [], fileName, title = 'Reporte', columns: columnsProp = [] }) => {
+  const { addToast } = useToast();
+  const [busy, setBusy] = useState(null);
+  const isEmpty = data.length === 0;
 
-            const columns = resolveColumns(columnsProp, data);
+  const run = async (format) => {
+    setBusy(format);
+    try {
+      const columns = resolveColumns(columnsProp, data);
+      if (format === 'excel') {
+        await exportToExcel(toRows(data, columns, (col) => col.header), fileName);
+      } else {
+        await exportToPDF(toRows(data, columns, (col) => col.dataKey), columns, title);
+      }
+    } catch (error) {
+      console.error(`Error exportando a ${format}:`, error);
+      addToast('No se pudo generar el archivo. Inténtalo de nuevo.', 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
 
-            // Formatear datos para Excel
-            const formattedData = data.map(item => {
-                const row = {};
-                columns.forEach(col => {
-                    row[col.header] = item[col.dataKey] || '';
-                });
-                return row;
-            });
-
-            await exportToExcel(formattedData, fileName);
-        } catch (error) {
-            console.error('Error exportando a Excel:', error);
-            alert('Error al exportar a Excel: ' + error.message);
-        }
-    };
-
-    const handleExportPDF = async () => {
-        try {
-            if (!data || data.length === 0) {
-                alert('No hay datos para exportar');
-                return;
-            }
-
-            const columns = resolveColumns(columnsProp, data);
-
-            // Formatear datos para PDF
-            const formattedData = data.map(item => {
-                const row = {};
-                columns.forEach(col => {
-                    row[col.dataKey] = item[col.dataKey] || '';
-                });
-                return row;
-            });
-
-            await exportToPDF(formattedData, columns, title);
-        } catch (error) {
-            console.error('Error exportando a PDF:', error);
-            alert('Error al exportar a PDF: ' + error.message);
-        }
-    };
-
-    return (
-        <div style={styles.container}>
-            <button
-                style={styles.btnExcel}
-                onClick={handleExportExcel}
-                title="Exportar a Excel"
-            >
-                📥 Excel
-            </button>
-            <button
-                style={styles.btnPDF}
-                onClick={handleExportPDF}
-                title="Exportar a PDF"
-            >
-                📄 PDF
-            </button>
-        </div>
-    );
-};
-
-const styles = {
-    container: {
-        display: 'flex',
-        gap: '0.5rem',
-        flexWrap: 'wrap',
-    },
-    btnExcel: {
-        padding: '0.625rem 1rem',
-        background: '#10B981',
-        color: 'white',
-        border: 'none',
-        borderRadius: '0.5rem',
-        cursor: 'pointer',
-        fontWeight: '600',
-        fontSize: '0.875rem',
-        whiteSpace: 'nowrap',
-        transition: 'all 0.2s',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    },
-    btnPDF: {
-        padding: '0.625rem 1rem',
-        background: '#EF4444',
-        color: 'white',
-        border: 'none',
-        borderRadius: '0.5rem',
-        cursor: 'pointer',
-        fontWeight: '600',
-        fontSize: '0.875rem',
-        whiteSpace: 'nowrap',
-        transition: 'all 0.2s',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    },
+  return (
+    <div className="export-buttons" role="group" aria-label="Exportar listado">
+      <button
+        type="button"
+        className="btn btn-secondary"
+        onClick={() => run('excel')}
+        disabled={isEmpty || busy !== null}
+        title={isEmpty ? 'No hay datos para exportar' : 'Descargar en Excel'}
+      >
+        <FileSpreadsheet size={16} aria-hidden="true" />
+        {busy === 'excel' ? 'Generando…' : 'Excel'}
+      </button>
+      <button
+        type="button"
+        className="btn btn-secondary"
+        onClick={() => run('pdf')}
+        disabled={isEmpty || busy !== null}
+        title={isEmpty ? 'No hay datos para exportar' : 'Descargar en PDF'}
+      >
+        <FileText size={16} aria-hidden="true" />
+        {busy === 'pdf' ? 'Generando…' : 'PDF'}
+      </button>
+    </div>
+  );
 };
 
 export default ExportButtons;

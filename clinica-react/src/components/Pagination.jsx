@@ -1,150 +1,69 @@
-const Pagination = ({ 
-  currentPage, 
-  totalPages, 
-  totalItems,
-  itemsPerPage,
-  onPageChange,
-  onItemsPerPageChange 
-}) => {
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxVisible = 5;
-    
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-    
-    if (endPage - startPage < maxVisible - 1) {
-      startPage = Math.max(1, endPage - maxVisible + 1);
-    }
-    
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(i);
-    }
-    
-    return pages;
-  };
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
+const PAGE_SIZES = [10, 25, 50, 100];
+const MAX_VISIBLE = 5;
+
+const visiblePages = (currentPage, totalPages) => {
+  let start = Math.max(1, currentPage - Math.floor(MAX_VISIBLE / 2));
+  const end = Math.min(totalPages, start + MAX_VISIBLE - 1);
+  start = Math.max(1, Math.min(start, end - MAX_VISIBLE + 1));
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+};
+
+const Pagination = ({ currentPage, totalPages, totalItems, itemsPerPage, onPageChange, onItemsPerPageChange }) => {
+  if (totalItems === 0) return null;
 
   const startItem = (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
   return (
-    <div style={styles.container}>
-      <div style={styles.info}>
-        Mostrando {startItem}-{endItem} de {totalItems} registros
-      </div>
-      
-      <div style={styles.controls}>
-        <div style={styles.pagination}>
-          <button
-            style={{...styles.pageBtn, ...styles.navBtn}}
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-          >
-            ← Anterior
-          </button>
-          
-          {getPageNumbers().map(page => (
-            <button
-              key={page}
-              style={{
-                ...styles.pageBtn,
-                ...(page === currentPage ? styles.activePageBtn : {})
-              }}
-              onClick={() => onPageChange(page)}
-            >
-              {page}
-            </button>
-          ))}
-          
-          <button
-            style={{...styles.pageBtn, ...styles.navBtn}}
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-          >
-            Siguiente →
-          </button>
-        </div>
-        
-        <div style={styles.perPageSelector}>
-          <label style={styles.label}>Mostrar:</label>
-          <select
-            style={styles.select}
-            value={itemsPerPage}
-            onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-          >
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
-        </div>
-      </div>
-    </div>
-  );
-};
+    <nav className="pagination" aria-label="Paginación">
+      <p className="pagination-info tabular">
+        {startItem}–{endItem} de {totalItems}
+      </p>
 
-const styles = {
-  container: {
-    marginTop: '1.5rem',
-    padding: '1rem',
-    background: 'white',
-    borderRadius: '0.5rem',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-  },
-  info: {
-    fontSize: '0.875rem',
-    color: '#64748B',
-    marginBottom: '1rem',
-    textAlign: 'center',
-  },
-  controls: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: '1rem',
-  },
-  pagination: {
-    display: 'flex',
-    gap: '0.5rem',
-    flexWrap: 'wrap',
-  },
-  pageBtn: {
-    padding: '0.5rem 0.75rem',
-    border: '1px solid #E2E8F0',
-    background: 'white',
-    color: '#475569',
-    borderRadius: '0.375rem',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    transition: 'all 0.2s',
-    minWidth: '40px',
-  },
-  activePageBtn: {
-    background: '#0A4D68',
-    color: 'white',
-    borderColor: '#0A4D68',
-  },
-  navBtn: {
-    fontWeight: '600',
-  },
-  perPageSelector: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-  },
-  label: {
-    fontSize: '0.875rem',
-    color: '#64748B',
-  },
-  select: {
-    padding: '0.5rem',
-    border: '1px solid #E2E8F0',
-    borderRadius: '0.375rem',
-    fontSize: '0.875rem',
-    cursor: 'pointer',
-  },
+      <div className="pagination-pages">
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm btn-icon"
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          aria-label="Página anterior"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        {visiblePages(currentPage, totalPages).map((page) => (
+          <button
+            key={page}
+            type="button"
+            className={`btn btn-sm pagination-page ${page === currentPage ? 'is-current' : 'btn-ghost'}`}
+            onClick={() => onPageChange(page)}
+            aria-current={page === currentPage ? 'page' : undefined}
+          >
+            {page}
+          </button>
+        ))}
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm btn-icon"
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          aria-label="Página siguiente"
+        >
+          <ChevronRight size={16} />
+        </button>
+      </div>
+
+      <label className="pagination-size">
+        Filas por página
+        <select value={itemsPerPage} onChange={(e) => onItemsPerPageChange(Number(e.target.value))}>
+          {PAGE_SIZES.map((size) => (
+            <option key={size} value={size}>{size}</option>
+          ))}
+        </select>
+      </label>
+    </nav>
+  );
 };
 
 export default Pagination;
