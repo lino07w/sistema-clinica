@@ -1,13 +1,16 @@
-FROM node:18-alpine
+FROM node:22-alpine
 
+ENV NODE_ENV=production
 WORKDIR /app
 
+# Instalar sólo dependencias de producción (capa cacheable)
 COPY package*.json ./
-
-RUN npm install
+RUN npm ci --omit=dev && npm cache clean --force
 
 COPY . .
 
-EXPOSE 3000
+# No ejecutar como root
+USER node
 
-CMD ["npm", "start"]
+EXPOSE 3000
+CMD ["node", "server.js"]
