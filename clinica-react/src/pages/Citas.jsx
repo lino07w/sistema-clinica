@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { citasAPI, pacientesAPI, medicosAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -136,7 +137,8 @@ const Citas = () => {
     setShowModal(true);
   };
 
-  const handleNuevo = () => {
+  /** Abre el formulario de nueva cita, opcionalmente con fecha/hora sugeridas. */
+  const handleNuevo = ({ fecha = '', hora = '' } = {}) => {
     setEditando(null);
     setCitaEditandoData(null);
 
@@ -154,13 +156,24 @@ const Citas = () => {
     reset({
       pacienteId: '',
       medicoId: initialMedicoId,
-      fecha: '',
-      hora: '',
+      fecha,
+      hora,
       motivo: '',
       estado: 'programada'
     });
     setShowModal(true);
   };
+
+  // La agenda puede pedir "nueva cita" en un horario libre (ver Dashboard).
+  const location = useLocation();
+  const navigate = useNavigate();
+  const nuevaCitaSugerida = location.state?.nuevaCita;
+  useEffect(() => {
+    if (loading || !nuevaCitaSugerida) return;
+    handleNuevo(nuevaCitaSugerida);
+    navigate(location.pathname, { replace: true, state: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sólo al llegar con la sugerencia
+  }, [loading, nuevaCitaSugerida]);
 
   const handleDelete = (id) => {
     setCitaAEliminar(id);
@@ -228,7 +241,7 @@ const Citas = () => {
             </h1>
 
             <Can roles={['administrador', 'recepcionista']}>
-              <button style={styles.btnPrimary} onClick={handleNuevo}>
+              <button style={styles.btnPrimary} onClick={() => handleNuevo()}>
                 + Nueva Cita
               </button>
             </Can>
