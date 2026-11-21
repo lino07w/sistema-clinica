@@ -96,6 +96,9 @@ const config = Object.freeze({
     logging: parseBoolean(process.env.DB_LOGGING, false)
   }),
 
+  // Carga datos de ejemplo al arrancar si la BD está vacía (demo pública)
+  seedDemoData: parseBoolean(process.env.SEED_DEMO_DATA, false),
+
   defaultAdmin: Object.freeze({
     username: process.env.DEFAULT_ADMIN_USERNAME || 'admin',
     email: process.env.DEFAULT_ADMIN_EMAIL || 'admin@clinica.com',

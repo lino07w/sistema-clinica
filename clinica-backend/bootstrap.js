@@ -7,8 +7,9 @@
 
 import config from './config/config.js';
 import db from './models/index.js';
+import { seedDemoData } from './seeders/demoData.js';
 
-const { sequelize, User, Config } = db;
+const { sequelize, User, Config, Paciente } = db;
 
 const seedConfig = async () => {
   if ((await Config.count()) > 0) return;
@@ -48,6 +49,13 @@ export const initializeDatabase = async ({ alter = false } = {}) => {
   await sequelize.sync({ alter });
   await seedConfig();
   await seedAdmin();
+
+  // Demo pública: si se habilita y la BD está vacía, se cargan datos de
+  // ejemplo. Nunca borra ni sobrescribe datos existentes.
+  if (config.seedDemoData && (await Paciente.count()) === 0) {
+    await seedDemoData();
+    console.log('[bootstrap] Datos de demostración cargados');
+  }
 };
 
 export default initializeDatabase;
