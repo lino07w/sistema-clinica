@@ -25,7 +25,13 @@ const Factura = sequelize.define('Factura', {
     },
     monto: {
         type: DataTypes.DECIMAL(10, 2),
-        allowNull: false
+        allowNull: false,
+        // pg devuelve DECIMAL como string para no perder precisión; los montos
+        // de 2 decimales caben en un Number, así la API expone un número.
+        get() {
+            const value = this.getDataValue('monto');
+            return value === null ? null : Number(value);
+        }
     },
     fecha: {
         type: DataTypes.DATEONLY,

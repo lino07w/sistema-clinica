@@ -83,7 +83,7 @@ const Dashboard = () => {
 
         const totalFacturado = facturasData
           .filter(f => f.estado === 'pagada')
-          .reduce((acc, curr) => acc + (curr.monto || 0), 0);
+          .reduce((acc, curr) => acc + (Number(curr.monto) || 0), 0);
 
         const eficiencia = citasData.length > 0
           ? Math.round((citasCompletadas / (citasCompletadas + citasCanceladas)) * 100) || 0
@@ -345,7 +345,7 @@ const Dashboard = () => {
           <div style={{ ...styles.statCard, borderLeft: '4px solid #10B981' }}>
             <div style={styles.statIcon}>💰</div>
             <div>
-              <h3 style={styles.statValue}>${stats.totalFacturado.toLocaleString()}</h3>
+              <h3 style={styles.statValue}>${stats.totalFacturado.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
               <p style={styles.statLabel}>Total Facturado (Mensual)</p>
             </div>
           </div>
