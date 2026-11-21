@@ -38,3 +38,6 @@ clinica-backend/test-results.txt
 clinica-backend/test-results-utf8.txt
 test-results.txt
 test-results-utf8.txt
+
+# Vercel
+.vercel

@@ -1,35 +1,27 @@
-# React + Vite
+# Frontend · Sistema de Gestión de Clínica
 
-Frontend – Clínica (React + Vite)
+SPA con **React 19 + Vite**. Consulta el [README principal](../README.md) para la visión general.
 
-Aplicación frontend para el Sistema de Gestión de Clínica. Construida con React y Vite.
-
-Requisitos
-- Node.js 18+
-- npm
-
-Instalación
-```
+```bash
+cp .env.example .env   # VITE_API_URL=http://localhost:3000
 npm install
+npm run dev            # http://localhost:5173
+npm run lint
+npm run build
 ```
 
-Variables de entorno
-1. Copiar `.env.example` → `.env` y ajustar:
-```
-VITE_API_URL=http://localhost:3000
-```
-2. Asegúrate que `VITE_API_URL` apunte al backend.
+## Estructura
 
-Scripts
-- npm run dev → Desarrollo (Vite) en http://localhost:5173
-- npm run build → Compilación de producción
-- npm run preview → Previsualización del build en http://localhost:4173
-
-Despliegue con Docker (monorepo)
-Este frontend se construye y sirve desde `docker-compose.yml` en la raíz. Asegúrate de crear `.env` en la raíz (ver README raíz) y ejecuta:
 ```
-docker compose up -d --build
+src/
+├── pages/        # Una página por ruta (cargadas con React.lazy)
+├── components/   # Componentes reutilizables (tablas, modales, exportación…)
+├── context/      # Auth, tema y notificaciones
+├── hooks/        # useTableData (búsqueda, orden y paginación)
+├── schemas/      # Validación de formularios con Zod
+├── services/     # Cliente HTTP (Axios) con interceptores de JWT
+├── config/       # Registro de Chart.js
+└── utils/        # Exportación a Excel/PDF y utilidades
 ```
 
-Licencia
-MIT
+`vercel.json` define el rewrite SPA (React Router), el cacheo inmutable de assets y cabeceras de seguridad.
