@@ -91,6 +91,7 @@ clinica-backend/
 - **Configuración fail-fast**: en producción la app no arranca si falta `JWT_SECRET`; no hay secretos por defecto.
 - **Seguridad**: whitelist de campos en el registro (evita *mass assignment*), contraseñas y tokens de recuperación hasheados, el hash nunca se serializa en las respuestas, respuestas que no permiten enumerar usuarios, HTML escapado en emails, Helmet y rate limiting.
 - **Sistema de diseño propio** ([docs/DESIGN.md](docs/DESIGN.md)): tokens de color y tipografía en CSS, clases compartidas en lugar de estilos inline y una identidad basada en el uso real (la agenda), no en una plantilla de tarjetas. Se trabajó con la skill [`frontend-design`](.claude/skills/frontend-design) de Anthropic, incluida en el repositorio.
+- **Video promocional reproducible:** la skill [`promo-video`](.claude/skills/promo-video) graba la app real con Playwright y la monta con ffmpeg en formato horizontal (1920×1080) y vertical (1080×1920).
 - **Rendimiento del frontend**: *code splitting* por ruta y carga diferida de las librerías de exportación. El bundle inicial pasó de 1,4 MB a 242 kB (79 kB gzip).
 
 ## Ejecutar en local
