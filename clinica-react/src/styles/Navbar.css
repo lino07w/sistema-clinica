@@ -202,7 +202,7 @@
 
 /* ---------- Móvil ---------- */
 
-.sidebar-mobile-toggle,
+.mobile-topbar,
 .sidebar-overlay {
   display: none;
 }
@@ -229,11 +229,16 @@
     display: none;
   }
 
-  .sidebar-mobile-toggle {
-    display: inline-flex;
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     position: fixed;
-    top: 0.75rem;
-    left: 0.75rem;
+    inset: 0 0 auto 0;
+    height: 3.5rem;
+    padding: 0 0.75rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
     z-index: 40;
   }
 

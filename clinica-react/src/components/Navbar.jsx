@@ -114,14 +114,24 @@ const Navbar = () => {
         aria-hidden="true"
       />
 
-      <button
-        type="button"
-        className="sidebar-mobile-toggle btn btn-secondary btn-icon"
-        onClick={() => setMobileOpen(true)}
-        aria-label="Abrir menú"
-      >
-        <Menu size={18} aria-hidden="true" />
-      </button>
+      {/* Barra superior sólo en móvil */}
+      <header className="mobile-topbar">
+        <button
+          type="button"
+          className="btn btn-ghost btn-icon"
+          onClick={() => setMobileOpen(true)}
+          aria-label="Abrir menú"
+          aria-expanded={mobileOpen}
+        >
+          <Menu size={20} aria-hidden="true" />
+        </button>
+        <span className="sidebar-brand">
+          <span className="sidebar-brand-mark" aria-hidden="true">
+            <Cross size={16} strokeWidth={2.5} />
+          </span>
+          <span className="sidebar-brand-name">Clínica</span>
+        </span>
+      </header>
 
       <aside
         className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}
