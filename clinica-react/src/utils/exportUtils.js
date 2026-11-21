@@ -1,12 +1,14 @@
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// Las librerías de exportación son pesadas (~600 kB): se cargan bajo demanda
+// con import() dinámico, sólo cuando el usuario exporta algo.
 
 /**
  * Exporta datos a Excel
+ * @param {object[]} data  Filas; las claves se usan como encabezados.
+ * @param {string} fileName Nombre del archivo sin extensión.
  */
-export const exportToExcel = (data, fileName) => {
+export const exportToExcel = async (data, fileName) => {
   try {
+    const XLSX = await import('xlsx');
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Datos');
@@ -19,9 +21,17 @@ export const exportToExcel = (data, fileName) => {
 
 /**
  * Exporta datos a PDF con tabla
+ * @param {object[]} data
+ * @param {{ header: string, dataKey: string }[]} columns
+ * @param {string} title
  */
-export const exportToPDF = (data, columns, title) => {
+export const exportToPDF = async (data, columns, title = 'Reporte') => {
   try {
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
+
     // Crear documento PDF
     const doc = new jsPDF();
 

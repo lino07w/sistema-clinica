@@ -11,7 +11,7 @@ const Login = () => {
   const { login } = useAuth();
   const { addToast } = useToast();
 
-  const { register, handleSubmit, formState: { errors, instanceId }, setError: setFormError } = useForm({
+  const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(loginSchema)
   });
 

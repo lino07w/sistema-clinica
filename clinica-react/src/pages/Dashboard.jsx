@@ -4,34 +4,8 @@ import { pacientesAPI, medicosAPI, citasAPI, usuariosAPI, facturasAPI } from '..
 import Navbar from '../components/Navbar';
 import ContentWrapper from '../components/ContentWrapper';
 import Spinner from '../components/Spinner';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  ArcElement,
-  Filler,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
+import '../config/chart';
 import { Bar, Pie, Line } from 'react-chartjs-2';
-
-// Registrar componentes de Chart.js
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  ArcElement,
-  Filler,
-  Title,
-  Tooltip,
-  Legend
-);
 
 const Dashboard = () => {
   const { user, isAdmin, isMedico, isRecepcionista, isPaciente } = useAuth();

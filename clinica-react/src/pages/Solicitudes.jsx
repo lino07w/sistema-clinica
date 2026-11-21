@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { usuariosAPI } from '../services/api';
 import Navbar from '../components/Navbar';
 import ContentWrapper from '../components/ContentWrapper';
 import { useToast } from '../context/ToastContext';
@@ -16,22 +16,13 @@ const Solicitudes = () => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [solicitudAAprobar, setSolicitudAAprobar] = useState(null);
 
-  const token = localStorage.getItem('token');
-  const axiosConfig = {
-    headers: { Authorization: `Bearer ${token}` }
-  };
-
   useEffect(() => {
     cargarSolicitudes();
   }, []);
 
   const cargarSolicitudes = async () => {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     try {
-      const response = await axios.get(
-        `${API_URL}/api/usuarios/pendientes`,
-        axiosConfig
-      );
+      const response = await usuariosAPI.getPendientes();
       const data = response.data?.data || response.data || [];
       setSolicitudes(data);
     } catch (error) {
@@ -48,13 +39,8 @@ const Solicitudes = () => {
   };
 
   const confirmarAprobacion = async () => {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     try {
-      await axios.post(
-        `${API_URL}/api/usuarios/${solicitudAAprobar}/aprobar`,
-        {},
-        axiosConfig
-      );
+      await usuariosAPI.aprobar(solicitudAAprobar);
       addToast('Solicitud aprobada correctamente', 'success');
       cargarSolicitudes();
     } catch (error) {
@@ -77,13 +63,8 @@ const Solicitudes = () => {
       return;
     }
 
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     try {
-      await axios.post(
-        `${API_URL}/api/usuarios/${solicitudSeleccionada.id}/rechazar`,
-        { motivo: motivoRechazo },
-        axiosConfig
-      );
+      await usuariosAPI.rechazar(solicitudSeleccionada.id, motivoRechazo);
       addToast('Solicitud rechazada correctamente', 'success');
       setShowModal(false);
       setSolicitudSeleccionada(null);

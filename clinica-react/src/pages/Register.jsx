@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { authAPI } from '../services/api';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -64,8 +64,7 @@ const Register = () => {
         dataToSend.matricula = formData.matricula;
       }
 
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      const response = await axios.post(`${API_URL}/api/auth/register`, dataToSend);
+      const response = await authAPI.register(dataToSend);
 
       if (response.data.success) {
         alert(response.data.message);

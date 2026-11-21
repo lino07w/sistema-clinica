@@ -1,19 +1,21 @@
 import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 
-const ExportButtons = ({ data, fileName, title = 'Reporte', columns = [] }) => {
+/** Usa las columnas recibidas o las infiere a partir de la primera fila. */
+const resolveColumns = (columns, data) => {
+    if (Array.isArray(columns) && columns.length > 0) return columns;
+    return Object.keys(data[0] || {}).map((key) => ({ header: key, dataKey: key }));
+};
 
-    const handleExportExcel = () => {
+const ExportButtons = ({ data, fileName, title = 'Reporte', columns: columnsProp = [] }) => {
+
+    const handleExportExcel = async () => {
         try {
             if (!data || data.length === 0) {
                 alert('No hay datos para exportar');
                 return;
             }
 
-            // Si no se pasan columnas, inferirlas desde la primera fila
-            if (!Array.isArray(columns) || columns.length === 0) {
-                const first = data[0] || {};
-                columns = Object.keys(first).map(k => ({ header: k, dataKey: k }));
-            }
+            const columns = resolveColumns(columnsProp, data);
 
             // Formatear datos para Excel
             const formattedData = data.map(item => {
@@ -24,25 +26,21 @@ const ExportButtons = ({ data, fileName, title = 'Reporte', columns = [] }) => {
                 return row;
             });
 
-            exportToExcel(formattedData, fileName);
+            await exportToExcel(formattedData, fileName);
         } catch (error) {
             console.error('Error exportando a Excel:', error);
             alert('Error al exportar a Excel: ' + error.message);
         }
     };
 
-    const handleExportPDF = () => {
+    const handleExportPDF = async () => {
         try {
             if (!data || data.length === 0) {
                 alert('No hay datos para exportar');
                 return;
             }
 
-            // Si no se pasan columnas, inferirlas desde la primera fila
-            if (!Array.isArray(columns) || columns.length === 0) {
-                const first = data[0] || {};
-                columns = Object.keys(first).map(k => ({ header: k, dataKey: k }));
-            }
+            const columns = resolveColumns(columnsProp, data);
 
             // Formatear datos para PDF
             const formattedData = data.map(item => {
@@ -53,7 +51,7 @@ const ExportButtons = ({ data, fileName, title = 'Reporte', columns = [] }) => {
                 return row;
             });
 
-            exportToPDF(formattedData, columns, title);
+            await exportToPDF(formattedData, columns, title);
         } catch (error) {
             console.error('Error exportando a PDF:', error);
             alert('Error al exportar a PDF: ' + error.message);

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
-import { usuariosAPI, pacientesAPI } from '../services/api';
+import { usuariosAPI } from '../services/api';
 import Navbar from '../components/Navbar';
 import ContentWrapper from '../components/ContentWrapper';
 import SearchBar from '../components/SearchBar';

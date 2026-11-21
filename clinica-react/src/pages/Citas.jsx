@@ -34,12 +34,9 @@ const Citas = () => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [citaAEliminar, setCitaAEliminar] = useState(null);
 
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(citaSchema)
   });
-
-  // Watch para condicionales si fuera necesario, o para debugging
-  const watchEstado = watch('estado');
 
   const {
     searchTerm,
@@ -76,7 +73,6 @@ const Citas = () => {
 
         const citasData = citasRes.data?.data || citasRes.data || [];
         const pacientesData = pacientesRes.data?.data || pacientesRes.data || [];
-        const medicosData = medicosRes.data?.data || medicosRes.data || [];
 
         const loadedMedicos = medicosRes.data?.data || medicosRes.data || [];
 

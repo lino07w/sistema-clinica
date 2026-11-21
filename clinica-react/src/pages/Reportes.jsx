@@ -7,6 +7,7 @@ import DateRangeFilter from '../components/DateRangeFilter';
 import Spinner from '../components/Spinner';
 import { useToast } from '../context/ToastContext';
 import { exportToExcel, exportToPDF, filterByDateRange, formatDate } from '../utils/exportUtils';
+import '../config/chart';
 import { Bar, Pie } from 'react-chartjs-2';
 
 const Reportes = () => {
@@ -107,7 +108,16 @@ const Reportes = () => {
   };
 
   // Exportaciones
-  const exportarCitas = () => {
+  const runExport = async (exportFn) => {
+    try {
+      await exportFn();
+    } catch (error) {
+      console.error('Error exportando:', error);
+      addToast('No se pudo generar el archivo. Inténtalo nuevamente.', 'error');
+    }
+  };
+
+  const exportarCitas = async () => {
     const datos = citasFiltradas.map(c => ({
       Fecha: formatDate(c.fecha),
       Hora: c.hora,
@@ -116,10 +126,10 @@ const Reportes = () => {
       Motivo: c.motivo || '-',
       Estado: c.estado,
     }));
-    exportToExcel(datos, 'Reporte_Citas');
+    await runExport(() => exportToExcel(datos, 'Reporte_Citas'));
   };
 
-  const exportarCitasPDF = () => {
+  const exportarCitasPDF = async () => {
     const datos = citasFiltradas.map(c => ({
       fecha: formatDate(c.fecha),
       hora: c.hora,
@@ -129,17 +139,17 @@ const Reportes = () => {
     }));
 
     const columns = [
-      { header: 'Fecha', field: 'fecha' },
-      { header: 'Hora', field: 'hora' },
-      { header: 'Paciente', field: 'paciente' },
-      { header: 'Médico', field: 'medico' },
-      { header: 'Estado', field: 'estado' },
+      { header: 'Fecha', dataKey: 'fecha' },
+      { header: 'Hora', dataKey: 'hora' },
+      { header: 'Paciente', dataKey: 'paciente' },
+      { header: 'Médico', dataKey: 'medico' },
+      { header: 'Estado', dataKey: 'estado' },
     ];
 
-    exportToPDF(datos, columns, 'Reporte de Citas');
+    await runExport(() => exportToPDF(datos, columns, 'Reporte de Citas'));
   };
 
-  const exportarMedicosPDF = () => {
+  const exportarMedicosPDF = async () => {
     const datos = medicosSolicitados.map(m => ({
       nombre: m.nombre,
       especialidad: m.especialidad,
@@ -149,14 +159,14 @@ const Reportes = () => {
     }));
 
     const columns = [
-      { header: 'Médico', field: 'nombre' },
-      { header: 'Especialidad', field: 'especialidad' },
-      { header: 'Total Citas', field: 'totalCitas' },
-      { header: 'Completadas', field: 'completadas' },
-      { header: 'Tasa', field: 'tasa' },
+      { header: 'Médico', dataKey: 'nombre' },
+      { header: 'Especialidad', dataKey: 'especialidad' },
+      { header: 'Total Citas', dataKey: 'totalCitas' },
+      { header: 'Completadas', dataKey: 'completadas' },
+      { header: 'Tasa', dataKey: 'tasa' },
     ];
 
-    exportToPDF(datos, columns, 'Médicos Más Solicitados');
+    await runExport(() => exportToPDF(datos, columns, 'Médicos Más Solicitados'));
   };
 
   const limpiarFiltros = () => {

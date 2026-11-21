@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api`;
+// Sin barra final para evitar URLs con "//"
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '');
+const API_URL = `${API_BASE_URL}/api`;
 
 const axiosInstance = axios.create({
   baseURL: API_URL,
@@ -27,7 +29,10 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Un 401 en /auth/* (p. ej. contraseña incorrecta) no es una sesión
+    // expirada: se deja pasar para que la pantalla muestre el mensaje.
+    const isAuthRequest = error.config?.url?.startsWith('/auth/');
+    if (error.response?.status === 401 && !isAuthRequest) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
@@ -40,7 +45,8 @@ axiosInstance.interceptors.response.use(
 export const authAPI = {
   login: (credentials) => axiosInstance.post('/auth/login', credentials),
   register: (userData) => axiosInstance.post('/auth/register', userData),
-  getMe: () => axiosInstance.get('/auth/me')
+  forgotPassword: (email) => axiosInstance.post('/auth/forgot-password', { email }),
+  resetPassword: (token, password) => axiosInstance.post(`/auth/reset-password/${token}`, { password })
 };
 
 // API de usuarios

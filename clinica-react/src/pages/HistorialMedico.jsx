@@ -98,7 +98,7 @@ const HistorialMedico = () => {
             await historialAPI.delete(registroAEliminar);
             addToast('Registro eliminado correctamente', 'success');
             cargarDatos();
-        } catch (error) {
+        } catch {
             addToast('Error al eliminar registro', 'error');
         } finally {
             setShowConfirm(false);

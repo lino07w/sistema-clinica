@@ -112,7 +112,7 @@ const Facturacion = () => {
             await facturasAPI.update(id, { estado });
             cargarDatos();
             addToast('Estado actualizado', 'success');
-        } catch (error) {
+        } catch {
             addToast('Error al actualizar estado', 'error');
         }
     };
@@ -127,7 +127,7 @@ const Facturacion = () => {
             await facturasAPI.delete(facturaAEliminar);
             addToast('Factura eliminada', 'success');
             cargarDatos();
-        } catch (error) {
+        } catch {
             addToast('Error al eliminar factura', 'error');
         } finally {
             setShowConfirm(false);
